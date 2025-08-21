@@ -154,8 +154,10 @@ function createOptions(correctAnswer) {
             .filter(q => {
                 if (options.includes(q.answer) || q.answer === correctAnswer) return false;
                 const qCoreName = getCoreName(q.answer);
+                const qBaseName = getBaseName(q.answer);
                 // 既に類似名前として処理されていない関連ポーズを探す
-                return qCoreName === correctCoreName && qCoreName.length > 4;
+                // 同一基本名（A/B/C等）は除外し、プレフィックス違いのみを対象とする
+                return qCoreName === correctCoreName && qCoreName.length > 4 && qBaseName !== correctBaseName;
             })
             .map(q => q.answer);
 
@@ -170,6 +172,7 @@ function createOptions(correctAnswer) {
         let similarCategoryAnswers = quizData
             .filter(q => !options.includes(q.answer) && // 既に選択肢に含まれていない
                       q.answer !== correctAnswer && // 正解ではない
+                      getBaseName(q.answer) !== correctBaseName && // 同一基本名は除外
                       q.category && // カテゴリが定義されている
                       q.category.some(cat => correctCategories.includes(cat))) // いずれかのカテゴリが一致
             .map(q => q.answer);
