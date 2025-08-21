@@ -1,0 +1,162 @@
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&display=swap');
+
+body {
+    font-family: 'Noto Sans JP', sans-serif;
+    margin: 0;
+    padding: 0;
+    background-image: url('images/Shiva_background.png');
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+}
+
+.quiz-wrapper {
+    width: 100%;
+    max-width: 550px;
+}
+
+#quiz-container, #result-container {
+    background: rgba(40, 42, 54, 0.85); /* スレートグレー */
+    backdrop-filter: blur(10px);
+    padding: 2rem 3rem;
+    border-radius: 15px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+    text-align: center;
+    border: 1px solid rgba(248, 248, 242, 0.2); /* オフホワイトの枠線 */
+    color: #f8f8f2; /* オフホワイトの文字色 */
+}
+
+h1, #result-container h2 {
+    font-weight: 700;
+    font-size: 2rem; /* 2行目のサイズ */
+    margin-bottom: 2rem;
+    line-height: 1.0; /* 行間をさらに狭める */
+}
+
+h1 .small-title {
+    font-size: 1rem; /* 1行目のフォントサイズをさらに小さく */
+    font-weight: normal; /* 太字を解除 */
+    display: block;
+    margin-bottom: 0rem; /* 2行目との間隔を最大限に詰める */
+}
+
+#image-container img {
+    max-width: 100%;
+    height: 300px;
+    border-radius: 10px;
+    border: 2px solid rgba(248, 248, 242, 0.5);
+    background: rgba(0, 0, 0, 0.2);
+    padding: 4px;
+}
+
+#options-container button {
+    display: block;
+    width: 100%;
+    padding: 1rem;
+    margin: 0.8rem 0;
+    border: 1px solid rgba(248, 248, 242, 0.8);
+    border-radius: 8px;
+    background-color: rgba(68, 71, 90, 0.8); /* 少し明るいグレー */
+    color: #f8f8f2;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 1rem;
+}
+
+#options-container button:hover {
+    background-color: rgba(100, 103, 120, 0.8);
+    border-color: #fff;
+}
+
+.hidden {
+    display: none;
+}
+
+#restart-btn {
+    background-color: #6272a4; /* 落ち着いたティール */
+    color: #f8f8f2;
+    border: none;
+    padding: 1rem 3rem;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 1.1rem;
+    font-weight: 700;
+    transition: background-color 0.2s ease;
+    margin-bottom: 1rem; /* ボタン間のスペース */
+}
+
+#restart-btn:hover {
+    background-color: #7a88c2;
+}
+
+#share-instagram-btn {
+    background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);
+    color: #f8f8f2;
+    border: none;
+    padding: 1rem 3rem;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 1.1rem;
+    font-weight: 700;
+    transition: background 0.2s ease;
+}
+
+#share-instagram-btn:hover {
+    opacity: 0.9;
+}
+
+/* レスポンシブデザイン */
+@media (max-width: 768px) {
+    #quiz-container, #result-container {
+        padding: 1.5rem 2rem;
+        margin: 1rem;
+    }
+
+    h1 {
+        font-size: 1.6rem;
+    }
+
+    h1 .small-title {
+        font-size: 0.8rem;
+    }
+
+    #options-container button {
+        padding: 0.6rem;
+        margin: 0.6rem 0;
+        font-size: 0.8rem;
+    }
+
+    #restart-btn, #share-instagram-btn {
+        padding: 0.6rem 1.5rem;
+        font-size: 0.9rem;
+    }
+}
+
+@media (max-width: 480px) {
+    #quiz-container, #result-container {
+        padding: 1rem 1.5rem;
+    }
+
+    h1 {
+        font-size: 1.3rem;
+    }
+
+    h1 .small-title {
+        font-size: 0.7rem;
+    }
+
+    #options-container button {
+        padding: 0.5rem;
+        margin: 0.5rem 0;
+        font-size: 0.75rem;
+    }
+
+    #restart-btn, #share-instagram-btn {
+        padding: 0.5rem 1rem;
+        font-size: 0.8rem;
+    }
+}

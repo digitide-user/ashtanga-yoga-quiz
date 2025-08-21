@@ -1,0 +1,33 @@
+{
+  "name": "ashtanga-yoga-quiz",
+  "version": "1.0.0",
+  "description": "アシュタンガヨガのアーサナクイズアプリケーション",
+  "main": "index.html",
+  "scripts": {
+    "start": "echo 'Static site - no build required'",
+    "dev": "python -m http.server 8000",
+    "test": "echo 'No tests specified'"
+  },
+  "keywords": [
+    "yoga",
+    "ashtanga",
+    "quiz",
+    "asana",
+    "learning",
+    "education",
+    "japanese"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/YOUR_USERNAME/ashtanga-yoga-quiz.git"
+  },
+  "bugs": {
+    "url": "https://github.com/YOUR_USERNAME/ashtanga-yoga-quiz/issues"
+  },
+  "homepage": "https://ashtanga-yoga-quiz.onrender.com",
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}

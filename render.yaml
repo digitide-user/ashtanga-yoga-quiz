@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: ashtanga-yoga-quiz
+    env: static
+    buildCommand: ""
+    staticPublishPath: .
+    headers:
+      - path: /*
+        headers:
+          Cache-Control: "public, max-age=86400"
+          X-Frame-Options: "SAMEORIGIN"
+          X-Content-Type-Options: "nosniff"
+          Referrer-Policy: "strict-origin-when-cross-origin"
+      - path: /images/*
+        headers:
+          Cache-Control: "public, max-age=604800"
+      - path: /css/*
+        headers:
+          Cache-Control: "public, max-age=604800"
+      - path: /js/*
+        headers:
+          Cache-Control: "public, max-age=604800"
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
