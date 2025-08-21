@@ -122,7 +122,7 @@ function createOptions(correctAnswer) {
     const correctPose = quizData.find(q => q.answer === correctAnswer);
     const correctCategories = correctPose ? correctPose.category : [];
 
-    // 1. 似た名前のポーズを収集 (最優先)
+    // 1. 似た名前のポーズを収集 (最優先、最大2つまで)
     let similarNameAnswers = quizData
         .filter(q => {
             if (q.answer === correctAnswer) return false;
@@ -139,12 +139,33 @@ function createOptions(correctAnswer) {
         })
         .map(q => q.answer);
 
-    while (options.length < 4 && similarNameAnswers.length > 0) {
+    // 類似名前は最大2つまでに制限
+    const maxSimilarNames = 2;
+    let addedSimilarNames = 0;
+    while (options.length < 4 && similarNameAnswers.length > 0 && addedSimilarNames < maxSimilarNames) {
         const randomIndex = Math.floor(Math.random() * similarNameAnswers.length);
         options.push(similarNameAnswers.splice(randomIndex, 1)[0]);
+        addedSimilarNames++;
     }
 
-    // 2. 似たカテゴリのポーズを収集 (次に優先)
+    // 2. 関連ポーズを収集 (プレフィックス違いなど、優先順位2)
+    if (options.length < 4) {
+        let relatedPoseAnswers = quizData
+            .filter(q => {
+                if (options.includes(q.answer) || q.answer === correctAnswer) return false;
+                const qCoreName = getCoreName(q.answer);
+                // 既に類似名前として処理されていない関連ポーズを探す
+                return qCoreName === correctCoreName && qCoreName.length > 4;
+            })
+            .map(q => q.answer);
+
+        while (options.length < 4 && relatedPoseAnswers.length > 0) {
+            const randomIndex = Math.floor(Math.random() * relatedPoseAnswers.length);
+            options.push(relatedPoseAnswers.splice(randomIndex, 1)[0]);
+        }
+    }
+
+    // 3. 似たカテゴリのポーズを収集 (優先順位3)
     if (options.length < 4 && correctCategories.length > 0) {
         let similarCategoryAnswers = quizData
             .filter(q => !options.includes(q.answer) && // 既に選択肢に含まれていない
@@ -159,7 +180,7 @@ function createOptions(correctAnswer) {
         }
     }
 
-    // 3. 残りの選択肢をランダムなポーズで埋める
+    // 4. 残りの選択肢をランダムなポーズで埋める
     let remainingWrongAnswers = quizData
         .map(q => q.answer)
         .filter(a => !options.includes(a)); // 既にoptionsに含まれているものは除外
