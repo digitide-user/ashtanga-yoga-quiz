@@ -4,10 +4,14 @@ body {
     font-family: 'Noto Sans JP', sans-serif;
     margin: 0;
     padding: 0;
-    background-image: url('../images/Shiva_background.png');
-    background-size: cover;
-    background-position: center;
+    background: linear-gradient(135deg, #1a1a2e, #16213e);
     background-attachment: fixed;
+    color: #ffffff;
+    /* 一時的に画像を無効化 */
+    /* background-image: url('../images/Shiva_background.png'); */
+    /* background-size: cover; */
+    /* background-position: center; */
+    /* background-repeat: no-repeat; */
     display: flex;
     justify-content: center;
     align-items: center;
