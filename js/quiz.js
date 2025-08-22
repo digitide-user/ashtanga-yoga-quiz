@@ -122,7 +122,7 @@ function createOptions(correctAnswer) {
     const correctPose = quizData.find(q => q.answer === correctAnswer);
     const correctCategories = correctPose ? correctPose.category : [];
 
-    // 1. 似た名前のポーズを収集 (最優先、最大2つまで) - 基本名一致のみ
+    // 1. 似た名前のポーズを収集 (最優先、正解含めて最大2つまで) - 基本名一致のみ
     let similarNameAnswers = quizData
         .filter(q => {
             if (q.answer === correctAnswer) return false;
@@ -131,8 +131,8 @@ function createOptions(correctAnswer) {
         })
         .map(q => q.answer);
 
-    // 類似名前は最大2つまでに制限
-    const maxSimilarNames = 2;
+    // 類似名前は最大1つまでに制限（正解を含めて計2つまで）
+    const maxSimilarNames = 1;
     let addedSimilarNames = 0;
     while (options.length < 4 && similarNameAnswers.length > 0 && addedSimilarNames < maxSimilarNames) {
         const randomIndex = Math.floor(Math.random() * similarNameAnswers.length);
