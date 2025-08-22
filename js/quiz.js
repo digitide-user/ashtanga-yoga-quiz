@@ -86,6 +86,17 @@ function loadQuiz() {
         return;
     }
 
+    // ボタンの選択状態を完全にリセット
+    const allButtons = document.querySelectorAll('button');
+    allButtons.forEach(button => {
+        button.classList.remove('selected', 'active', 'clicked', 'pressed');
+        button.style.backgroundColor = '';
+        button.style.borderColor = '';
+        button.style.transform = '';
+        button.style.boxShadow = '';
+        button.blur(); // フォーカス状態を解除
+    });
+
     const currentQuestion = questions[currentQuestionIndex];
     imageContainer.innerHTML = `<img src="images/${currentQuestion.imageName}" alt="ヨガのポーズ">`;
 
@@ -94,7 +105,16 @@ function loadQuiz() {
     options.forEach(option => {
         const button = document.createElement('button');
         button.innerText = option;
-        button.addEventListener('click', () => checkAnswer(option, currentQuestion.answer));
+        button.addEventListener('click', () => {
+            // クリック時の視覚的フィードバック
+            button.style.transform = 'scale(0.98)';
+            button.style.backgroundColor = 'rgba(150, 153, 170, 0.9)';
+            
+            // 少し遅延してから次の問題に進む
+            setTimeout(() => {
+                checkAnswer(option, currentQuestion.answer);
+            }, 150);
+        });
         optionsContainer.appendChild(button);
     });
 }
