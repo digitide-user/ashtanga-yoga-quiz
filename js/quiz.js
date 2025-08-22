@@ -87,70 +87,33 @@ function setupQuiz() {
     }, 100);
 }
 
-// ボタン状態を完全にリセットする専用関数
+// ボタン状態を安全にリセットする専用関数（選択肢ボタンのみ対象）
 function resetAllButtonStates() {
-    // すべてのボタンを取得（選択肢ボタンとその他のボタン）
-    const allButtons = document.querySelectorAll('button, .choice-btn, [data-answer], #options-container button');
+    // 選択肢ボタンのみを限定的に取得
+    const choiceButtons = document.querySelectorAll('#options-container button, .choice-btn');
     
-    allButtons.forEach(button => {
-        // CSSクラスをすべて削除
-        button.classList.remove('selected', 'active', 'clicked', 'pressed', 'focus', 'hover-state', 'touched');
+    choiceButtons.forEach(button => {
+        // 見た目関連のCSSクラスのみ削除（機能は保持）
+        button.classList.remove('selected', 'active', 'clicked', 'pressed', 'hover-state');
         
-        // インラインスタイルを完全にクリア（CSS の !important も上書き）
-        button.style.cssText = ''; // 全てのスタイルをクリア
-        button.style.backgroundColor = '' + ' !important';
-        button.style.borderColor = '' + ' !important';
-        button.style.color = '' + ' !important';
-        button.style.transform = '' + ' !important';
-        button.style.boxShadow = '' + ' !important';
-        button.style.opacity = '' + ' !important';
-        button.style.filter = '' + ' !important';
+        // 見た目関連のインラインスタイルのみリセット（機能に影響するものは保持）
+        button.style.backgroundColor = '';
+        button.style.borderColor = '';
+        button.style.transform = '';
+        button.style.boxShadow = '';
+        button.style.opacity = '';
         
-        // data属性をクリア
+        // 選択状態のdata属性のみクリア
         button.removeAttribute('data-selected');
-        button.removeAttribute('data-clicked');
-        button.removeAttribute('data-touched');
         
-        // ボタンを有効化
-        button.disabled = false;
-        
-        // フォーカス状態を解除
+        // フォーカス状態のみ解除（disabled状態やイベントは変更しない）
         if (button.blur) button.blur();
-        if (button.focus) {
-            // iOS Safari: 強制的にフォーカスを別の要素に移す
-            document.body.focus();
-        }
         
-        // iOS Safari 対応: -webkit プロパティもクリア
-        button.style.webkitTransform = '' + ' !important';
-        button.style.webkitBoxShadow = '' + ' !important';
-        button.style.webkitFilter = '' + ' !important';
-        button.style.webkitAppearance = 'none';
+        // iOS Safari対応: タップハイライトのみ制御
         button.style.webkitTapHighlightColor = 'transparent';
         
-        // iOS Safari: タッチイベントもクリア
-        button.ontouchstart = null;
-        button.ontouchend = null;
-        button.ontouchmove = null;
+        // NOTE: disabled, onclick, イベントリスナーは保持
     });
-    
-    // 選択肢コンテナ全体もリセット
-    if (optionsContainer) {
-        optionsContainer.style.cssText = '';
-        optionsContainer.style.transform = '';
-        optionsContainer.style.opacity = '';
-        
-        // iOS Safari: コンテナのタッチイベントもクリア
-        optionsContainer.ontouchstart = null;
-        optionsContainer.ontouchend = null;
-    }
-    
-    // iOS Safari: DOM を強制的に再描画
-    if (optionsContainer) {
-        optionsContainer.style.display = 'none';
-        optionsContainer.offsetHeight; // 強制リフロー
-        optionsContainer.style.display = '';
-    }
 }
 
 function loadQuiz() {
@@ -159,86 +122,48 @@ function loadQuiz() {
         return;
     }
 
-    // 問題表示の最初にボタン状態を完全リセット
+    // 前の問題のボタン状態をリセット
     resetAllButtonStates();
 
     const currentQuestion = questions[currentQuestionIndex];
     imageContainer.innerHTML = `<img src="images/${currentQuestion.imageName}" alt="ヨガのポーズ">`;
 
     const options = createOptions(currentQuestion.answer);
-    
-    // コンテナを完全にクリアして強制再描画
     optionsContainer.innerHTML = '';
-    optionsContainer.style.display = 'none';
-    optionsContainer.offsetHeight; // 強制リフロー
-    optionsContainer.style.display = '';
     
-    // iOS Safari: 少し遅延してからボタンを作成
-    setTimeout(() => {
-        // 選択肢ボタンを作成
-        options.forEach((option, index) => {
-            const button = document.createElement('button');
-            button.innerText = option;
-            button.className = 'choice-btn';
-            button.setAttribute('data-answer', option);
-            button.setAttribute('data-index', index);
+    // 選択肢ボタンを作成
+    options.forEach((option, index) => {
+        const button = document.createElement('button');
+        button.innerText = option;
+        button.className = 'choice-btn';
+        button.setAttribute('data-answer', option);
+        button.setAttribute('data-index', index);
+        
+        // iOS Safari対応の基本設定
+        button.style.webkitTapHighlightColor = 'transparent';
+        
+        button.addEventListener('click', () => {
+            // 二重クリック防止
+            if (button.disabled) return;
+            button.disabled = true;
             
-            // iOS Safari 対応: 初期状態を明示的に設定
-            button.style.cssText = '';
-            button.style.backgroundColor = '';
-            button.style.borderColor = '';
-            button.style.transform = '';
-            button.style.webkitTapHighlightColor = 'transparent';
-            button.style.webkitAppearance = 'none';
+            // すべてのボタンを無効化
+            const allChoiceButtons = optionsContainer.querySelectorAll('button');
+            allChoiceButtons.forEach(btn => btn.disabled = true);
             
-            button.addEventListener('click', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                
-                // 二重クリック防止
-                if (button.disabled || button.hasAttribute('data-clicked')) return;
-                button.disabled = true;
-                button.setAttribute('data-clicked', 'true');
-                
-                // すべてのボタンを無効化
-                const allChoiceButtons = optionsContainer.querySelectorAll('button');
-                allChoiceButtons.forEach(btn => {
-                    btn.disabled = true;
-                    btn.setAttribute('data-clicked', 'true');
-                });
-                
-                // クリック時の視覚的フィードバック（!important で強制適用）
-                button.style.cssText = `
-                    transform: scale(0.95) !important;
-                    background-color: rgba(150, 153, 170, 0.9) !important;
-                    border-color: #fff !important;
-                `;
-                
-                // 次の問題に進む
-                setTimeout(() => {
-                    checkAnswer(option, currentQuestion.answer);
-                }, 200);
-            });
+            // クリック時の視覚的フィードバック
+            button.style.transform = 'scale(0.95)';
+            button.style.backgroundColor = 'rgba(150, 153, 170, 0.9)';
+            button.style.borderColor = '#fff';
             
-            // iOS Safari: タッチイベントの追加
-            button.addEventListener('touchstart', (e) => {
-                e.preventDefault();
-            });
-            
-            optionsContainer.appendChild(button);
+            // 次の問題に進む
+            setTimeout(() => {
+                checkAnswer(option, currentQuestion.answer);
+            }, 200);
         });
         
-        // ボタン作成後に最終リセット
-        setTimeout(() => {
-            const newButtons = optionsContainer.querySelectorAll('button');
-            newButtons.forEach(btn => {
-                if (!btn.hasAttribute('data-clicked')) {
-                    btn.style.cssText = '';
-                    btn.style.webkitTapHighlightColor = 'transparent';
-                }
-            });
-        }, 100);
-    }, 100);
+        optionsContainer.appendChild(button);
+    });
 }
 
 function createOptions(correctAnswer) {
