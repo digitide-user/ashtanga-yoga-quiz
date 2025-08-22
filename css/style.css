@@ -191,3 +191,17 @@ h1 .small-title {
         font-size: 0.8rem;
     }
 }
+
+/* iPhone Safari用の軽量ボタンリセット */
+.choice-btn:not(:hover):not(:active):not(:focus) {
+    background-color: rgba(68, 71, 90, 0.8) !important;
+    transform: none !important;
+    border-color: rgba(248, 248, 242, 0.8) !important;
+}
+
+/* iPhone Safari専用: タッチ後の状態リセット */
+@supports (-webkit-touch-callout: none) {
+    .choice-btn {
+        -webkit-tap-highlight-color: transparent !important;
+    }
+}
