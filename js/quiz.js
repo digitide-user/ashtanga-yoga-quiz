@@ -87,57 +87,128 @@ function setupQuiz() {
     }, 100);
 }
 
-// ボタン状態を安全にリセットする専用関数（選択肢ボタンのみ対象）
+// iPhone Safari検出
+const isIOSSafari = /iPhone|iPad/.test(navigator.userAgent) && /Safari/.test(navigator.userAgent);
+
+// 超強力リセット処理（iPhone Safari 専用）
+function forceResetButtonStates() {
+    console.log('[DEBUG] Force reset for iPhone Safari');
+    
+    const container = document.getElementById('options-container');
+    if (!container) return;
+    
+    // 現在のボタンデータを保存
+    const currentButtons = Array.from(container.querySelectorAll('button')).map(btn => ({
+        text: btn.innerText,
+        dataAnswer: btn.getAttribute('data-answer'),
+        dataIndex: btn.getAttribute('data-index')
+    }));
+    
+    console.log('[DEBUG] Saved button data:', currentButtons);
+    
+    // DOM 完全再作成でリセット
+    const parent = container.parentNode;
+    const newContainer = document.createElement('div');
+    newContainer.id = 'options-container';
+    newContainer.innerHTML = '';
+    
+    // 古いコンテナを削除
+    parent.removeChild(container);
+    
+    // 新しいコンテナを追加
+    parent.appendChild(newContainer);
+    
+    // 強制的にブラウザの再描画
+    newContainer.offsetHeight;
+    
+    console.log('[DEBUG] Container recreated');
+    
+    // グローバル参照を更新
+    window.optionsContainer = newContainer;
+    
+    // ボタンを再作成
+    setTimeout(() => {
+        currentButtons.forEach((buttonData, index) => {
+            const button = document.createElement('button');
+            button.innerText = buttonData.text;
+            button.className = 'choice-btn';
+            button.setAttribute('data-answer', buttonData.dataAnswer);
+            button.setAttribute('data-index', buttonData.dataIndex);
+            
+            // iPhone Safari 専用の初期化
+            button.style.cssText = `
+                -webkit-tap-highlight-color: transparent !important;
+                -webkit-appearance: none !important;
+                -webkit-user-select: none !important;
+                background-color: rgba(68, 71, 90, 0.8) !important;
+                border-color: rgba(248, 248, 242, 0.8) !important;
+            `;
+            
+            // イベント再設定
+            button.addEventListener('click', () => {
+                console.log(`[DEBUG] iPhone Safari - Button clicked: "${buttonData.dataAnswer}" at index ${index}`);
+                
+                if (button.disabled) return;
+                button.disabled = true;
+                
+                // すべてのボタンを無効化
+                const allChoiceButtons = newContainer.querySelectorAll('button');
+                allChoiceButtons.forEach(btn => btn.disabled = true);
+                
+                // クリック時の視覚的フィードバック
+                button.style.cssText += `
+                    transform: scale(0.95) !important;
+                    background-color: rgba(150, 153, 170, 0.9) !important;
+                    border-color: #fff !important;
+                `;
+                
+                setTimeout(() => {
+                    checkAnswer(buttonData.dataAnswer, questions[currentQuestionIndex].answer);
+                }, 200);
+            });
+            
+            newContainer.appendChild(button);
+        });
+        
+        console.log('[DEBUG] Buttons recreated for iPhone Safari');
+    }, 50);
+}
+
+// ボタン状態を安全にリセットする専用関数
 function resetAllButtonStates() {
     console.log('[DEBUG] Resetting button states...');
     
-    // 選択肢ボタンのみを限定的に取得
+    // iPhone Safari の場合は超強力リセット
+    if (isIOSSafari) {
+        console.log('[DEBUG] iPhone Safari detected - using force reset');
+        forceResetButtonStates();
+        return;
+    }
+    
+    // 通常のリセット処理
     const choiceButtons = document.querySelectorAll('#options-container button, .choice-btn');
     console.log('[DEBUG] Found buttons to reset:', choiceButtons.length);
     
     choiceButtons.forEach((button, index) => {
         console.log(`[DEBUG] Resetting button ${index}:`, button.innerText);
         
-        // 見た目関連のCSSクラスのみ削除（機能は保持）
         button.classList.remove('selected', 'active', 'clicked', 'pressed', 'hover-state');
         
-        // 見た目関連のインラインスタイルのみリセット（機能に影響するものは保持）
         button.style.backgroundColor = '';
         button.style.borderColor = '';
         button.style.transform = '';
         button.style.boxShadow = '';
         button.style.opacity = '';
         
-        // iPhone Safari 疑似クラス対応: 強制的にスタイルリセット
-        button.style.cssText += '; background-color: rgba(68, 71, 90, 0.8) !important;';
-        button.style.cssText += '; border-color: rgba(248, 248, 242, 0.8) !important;';
-        button.style.cssText += '; transform: none !important;';
-        
-        // 選択状態のdata属性のみクリア
         button.removeAttribute('data-selected');
         
-        // フォーカス状態を強制的に解除
         if (button.blur) button.blur();
-        
-        // iPhone Safari: documentにフォーカスを移動
         document.activeElement.blur();
         
-        // iOS Safari対応: タップハイライトのみ制御
         button.style.webkitTapHighlightColor = 'transparent';
         
         console.log(`[DEBUG] Button ${index} reset complete`);
     });
-    
-    // 最終的に強制リセット用の遅延処理
-    setTimeout(() => {
-        const buttons = document.querySelectorAll('#options-container button');
-        buttons.forEach((btn, i) => {
-            btn.style.backgroundColor = '';
-            btn.style.borderColor = '';
-            btn.style.transform = '';
-            console.log(`[DEBUG] Final reset for button ${i}`);
-        });
-    }, 100);
 }
 
 function loadQuiz() {
@@ -146,14 +217,41 @@ function loadQuiz() {
         return;
     }
 
-    // 前の問題のボタン状態をリセット
-    resetAllButtonStates();
+    console.log(`[DEBUG] Loading quiz question ${currentQuestionIndex + 1}`);
 
     const currentQuestion = questions[currentQuestionIndex];
     imageContainer.innerHTML = `<img src="images/${currentQuestion.imageName}" alt="ヨガのポーズ">`;
 
+    // iPhone Safari の場合は完全リセット後に新しいボタンを作成
+    if (isIOSSafari) {
+        console.log('[DEBUG] iPhone Safari - Force resetting before creating new buttons');
+        
+        // 前の問題のボタン状態を超強力リセット
+        setTimeout(() => {
+            resetAllButtonStates();
+            
+            // リセット完了後に新しい問題を表示
+            setTimeout(() => {
+                createAndDisplayButtons(currentQuestion);
+            }, 100);
+        }, 50);
+    } else {
+        // 通常のブラウザ
+        resetAllButtonStates();
+        createAndDisplayButtons(currentQuestion);
+    }
+}
+
+// ボタン作成と表示を分離した関数
+function createAndDisplayButtons(currentQuestion) {
     const options = createOptions(currentQuestion.answer);
-    optionsContainer.innerHTML = '';
+    
+    // iPhone Safari 以外は通常の innerHTML でクリア
+    if (!isIOSSafari) {
+        optionsContainer.innerHTML = '';
+    }
+    
+    console.log('[DEBUG] Creating buttons for options:', options);
     
     // 選択肢ボタンを作成
     options.forEach((option, index) => {
@@ -163,13 +261,22 @@ function loadQuiz() {
         button.setAttribute('data-answer', option);
         button.setAttribute('data-index', index);
         
-        // iOS Safari対応の基本設定
-        button.style.webkitTapHighlightColor = 'transparent';
+        // iPhone Safari 専用の初期化
+        if (isIOSSafari) {
+            button.style.cssText = `
+                -webkit-tap-highlight-color: transparent !important;
+                -webkit-appearance: none !important;
+                -webkit-user-select: none !important;
+                background-color: rgba(68, 71, 90, 0.8) !important;
+                border-color: rgba(248, 248, 242, 0.8) !important;
+            `;
+        } else {
+            button.style.webkitTapHighlightColor = 'transparent';
+        }
         
         button.addEventListener('click', () => {
             console.log(`[DEBUG] Button clicked: "${option}" at index ${index}`);
             console.log('[DEBUG] Button element:', button);
-            console.log('[DEBUG] Button computed styles before click:', getComputedStyle(button).backgroundColor);
             
             // 二重クリック防止
             if (button.disabled) return;
@@ -183,9 +290,17 @@ function loadQuiz() {
             });
             
             // クリック時の視覚的フィードバック
-            button.style.transform = 'scale(0.95)';
-            button.style.backgroundColor = 'rgba(150, 153, 170, 0.9)';
-            button.style.borderColor = '#fff';
+            if (isIOSSafari) {
+                button.style.cssText += `
+                    transform: scale(0.95) !important;
+                    background-color: rgba(150, 153, 170, 0.9) !important;
+                    border-color: #fff !important;
+                `;
+            } else {
+                button.style.transform = 'scale(0.95)';
+                button.style.backgroundColor = 'rgba(150, 153, 170, 0.9)';
+                button.style.borderColor = '#fff';
+            }
             
             console.log('[DEBUG] Applied click feedback styles');
             
@@ -198,6 +313,8 @@ function loadQuiz() {
         
         optionsContainer.appendChild(button);
     });
+    
+    console.log('[DEBUG] All buttons created and appended');
 }
 
 function createOptions(correctAnswer) {
