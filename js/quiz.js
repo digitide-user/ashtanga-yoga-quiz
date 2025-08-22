@@ -89,10 +89,15 @@ function setupQuiz() {
 
 // ボタン状態を安全にリセットする専用関数（選択肢ボタンのみ対象）
 function resetAllButtonStates() {
+    console.log('[DEBUG] Resetting button states...');
+    
     // 選択肢ボタンのみを限定的に取得
     const choiceButtons = document.querySelectorAll('#options-container button, .choice-btn');
+    console.log('[DEBUG] Found buttons to reset:', choiceButtons.length);
     
-    choiceButtons.forEach(button => {
+    choiceButtons.forEach((button, index) => {
+        console.log(`[DEBUG] Resetting button ${index}:`, button.innerText);
+        
         // 見た目関連のCSSクラスのみ削除（機能は保持）
         button.classList.remove('selected', 'active', 'clicked', 'pressed', 'hover-state');
         
@@ -103,17 +108,36 @@ function resetAllButtonStates() {
         button.style.boxShadow = '';
         button.style.opacity = '';
         
+        // iPhone Safari 疑似クラス対応: 強制的にスタイルリセット
+        button.style.cssText += '; background-color: rgba(68, 71, 90, 0.8) !important;';
+        button.style.cssText += '; border-color: rgba(248, 248, 242, 0.8) !important;';
+        button.style.cssText += '; transform: none !important;';
+        
         // 選択状態のdata属性のみクリア
         button.removeAttribute('data-selected');
         
-        // フォーカス状態のみ解除（disabled状態やイベントは変更しない）
+        // フォーカス状態を強制的に解除
         if (button.blur) button.blur();
+        
+        // iPhone Safari: documentにフォーカスを移動
+        document.activeElement.blur();
         
         // iOS Safari対応: タップハイライトのみ制御
         button.style.webkitTapHighlightColor = 'transparent';
         
-        // NOTE: disabled, onclick, イベントリスナーは保持
+        console.log(`[DEBUG] Button ${index} reset complete`);
     });
+    
+    // 最終的に強制リセット用の遅延処理
+    setTimeout(() => {
+        const buttons = document.querySelectorAll('#options-container button');
+        buttons.forEach((btn, i) => {
+            btn.style.backgroundColor = '';
+            btn.style.borderColor = '';
+            btn.style.transform = '';
+            console.log(`[DEBUG] Final reset for button ${i}`);
+        });
+    }, 100);
 }
 
 function loadQuiz() {
@@ -143,21 +167,31 @@ function loadQuiz() {
         button.style.webkitTapHighlightColor = 'transparent';
         
         button.addEventListener('click', () => {
+            console.log(`[DEBUG] Button clicked: "${option}" at index ${index}`);
+            console.log('[DEBUG] Button element:', button);
+            console.log('[DEBUG] Button computed styles before click:', getComputedStyle(button).backgroundColor);
+            
             // 二重クリック防止
             if (button.disabled) return;
             button.disabled = true;
             
             // すべてのボタンを無効化
             const allChoiceButtons = optionsContainer.querySelectorAll('button');
-            allChoiceButtons.forEach(btn => btn.disabled = true);
+            allChoiceButtons.forEach((btn, btnIndex) => {
+                btn.disabled = true;
+                console.log(`[DEBUG] Disabled button ${btnIndex}`);
+            });
             
             // クリック時の視覚的フィードバック
             button.style.transform = 'scale(0.95)';
             button.style.backgroundColor = 'rgba(150, 153, 170, 0.9)';
             button.style.borderColor = '#fff';
             
+            console.log('[DEBUG] Applied click feedback styles');
+            
             // 次の問題に進む
             setTimeout(() => {
+                console.log('[DEBUG] Moving to next question...');
                 checkAnswer(option, currentQuestion.answer);
             }, 200);
         });
