@@ -70,6 +70,8 @@ const shareInstagramBtn = document.getElementById('share-instagram-btn');
 let currentQuestionIndex = 0;
 let score = 0;
 let questions = [];
+let quizStartTime = 0;
+let totalTimeSpent = 0;
 
 // クイズの質問をシャッフルして準備
 function setupQuiz() {
@@ -80,6 +82,9 @@ function setupQuiz() {
     questions = shuffledQuestions.slice(0, 10);
     currentQuestionIndex = 0;
     score = 0;
+    quizStartTime = Date.now(); // クイズ開始時間を記録
+    
+    console.log('[DEBUG] Quiz started at:', new Date(quizStartTime).toLocaleTimeString());
     
     // 少し遅延してからクイズを開始（iOS Safari対応）
     setTimeout(() => {
@@ -346,20 +351,37 @@ function checkAnswer(selectedAnswer, correctAnswer) {
 }
 
 function showResult() {
+    // 総時間を計算（秒単位）
+    totalTimeSpent = Math.floor((Date.now() - quizStartTime) / 1000);
+    
+    console.log('[DEBUG] Quiz completed:', {
+        score: score,
+        totalQuestions: questions.length,
+        timeSpent: totalTimeSpent
+    });
+
     quizContainer.classList.add('hidden');
     resultContainer.classList.remove('hidden');
 
-    scoreElement.innerText = `${questions.length}問中 ${score}問正解！`;
+    scoreElement.innerText = `${questions.length}問中 ${score}問正解！（${Math.floor(totalTimeSpent / 60)}分${totalTimeSpent % 60}秒）`;
 
+    let rewardMessage = '';
     if (score === 10) {
-        rewardElement.innerText = '素晴らしい！あなたはアシュタンガヨガマスターです！これからもスピリチュアルライフを楽しんでくださいね！';
+        rewardMessage = '素晴らしい！あなたはアシュタンガヨガマスターです！これからもスピリチュアルライフを楽しんでくださいね！';
     } else if (score >= 7 && score <= 9) {
-        rewardElement.innerText = 'もう一歩でしたね！これからもアシュタンガヨガを楽しみながら継続していきましょう！キーププラクティス！';
+        rewardMessage = 'もう一歩でしたね！これからもアシュタンガヨガを楽しみながら継続していきましょう！キーププラクティス！';
     } else if (score >= 4 && score <= 6) {
-        rewardElement.innerText = 'ナイスチャレンジ！少しずつアーサナを習得している段階ですね。もっとヨガの世界を探究をしていきましょう！';
+        rewardMessage = 'ナイスチャレンジ！少しずつアーサナを習得している段階ですね。もっとヨガの世界を探究をしていきましょう！';
     } else {
-        rewardElement.innerText = 'ここからが始まりです！焦らなくて大丈夫！まずは一つ一つのアーサナをじっくり味わいながら楽しみましょう！';
+        rewardMessage = 'ここからが始まりです！焦らなくて大丈夫！まずは一つ一つのアーサナをじっくり味わいながら楽しみましょう！';
     }
+    
+    rewardElement.innerText = rewardMessage;
+    
+    // ランキング機能を統合（少し遅延して表示）
+    setTimeout(() => {
+        rankingSystem.addScore(score, questions.length, totalTimeSpent);
+    }, 1000);
 }
 
 restartBtn.addEventListener('click', () => {
