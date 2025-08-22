@@ -380,8 +380,10 @@ function showResult() {
     
     // ランキング機能を統合（少し遅延して表示）
     setTimeout(() => {
-        rankingSystem.addScore(score, questions.length, totalTimeSpent);
-    }, 1000);
+        if (typeof rankingSystem !== 'undefined' && rankingSystem) {
+            rankingSystem.addScore(score, questions.length, totalTimeSpent);
+        }
+    }, 1500);
 }
 
 restartBtn.addEventListener('click', () => {

@@ -206,47 +206,43 @@ h1 .small-title {
     }
 }
 
-/* ランキングモーダル */
-.ranking-modal {
+/* ランキング名前入力モーダル */
+.name-prompt-modal {
     position: fixed;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: rgba(0, 0, 0, 0.7);
+    background-color: rgba(0, 0, 0, 0.8);
     display: flex;
     justify-content: center;
     align-items: center;
-    z-index: 1000;
+    z-index: 10000;
 }
 
-.ranking-modal-content {
+.name-prompt-content {
     background: rgba(40, 42, 54, 0.95);
     border-radius: 15px;
     padding: 2rem;
     width: 90%;
-    max-width: 600px;
-    max-height: 80vh;
-    overflow-y: auto;
+    max-width: 400px;
     border: 1px solid rgba(248, 248, 242, 0.2);
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+    text-align: center;
 }
 
-.ranking-modal-content h3 {
+.name-prompt-content h3 {
     color: #f8f8f2;
-    text-align: center;
-    margin-bottom: 1.5rem;
     font-size: 1.5rem;
-}
-
-/* ユーザー名入力 */
-.ranking-modal-content p {
-    color: #f8f8f2;
     margin-bottom: 1rem;
-    text-align: center;
 }
 
-#user-name-input {
+.name-prompt-content p {
+    color: rgba(248, 248, 242, 0.8);
+    margin-bottom: 1.5rem;
+}
+
+.name-prompt-content input {
     width: 100%;
     padding: 0.8rem;
     border: 2px solid rgba(248, 248, 242, 0.3);
@@ -255,58 +251,175 @@ h1 .small-title {
     color: #f8f8f2;
     font-size: 1rem;
     margin-bottom: 1.5rem;
+    box-sizing: border-box;
 }
 
-#user-name-input:focus {
+.name-prompt-content input:focus {
     outline: none;
     border-color: #6272a4;
 }
 
-.ranking-modal-buttons {
+.name-prompt-buttons {
     display: flex;
-    gap: 1rem;
-    justify-content: center;
-    margin-top: 1.5rem;
+    flex-direction: column;
+    gap: 0.8rem;
+    margin-bottom: 1rem;
 }
 
-.ranking-modal-buttons button {
-    padding: 0.8rem 2rem;
+.name-prompt-buttons button {
+    padding: 0.8rem 1.5rem;
     border: none;
     border-radius: 8px;
     cursor: pointer;
-    font-size: 1rem;
-    font-weight: 700;
+    font-size: 0.9rem;
+    font-weight: 600;
     transition: all 0.2s ease;
 }
 
-#name-submit-btn, #ranking-close-btn {
-    background-color: #6272a4;
+#submitNameBtn {
+    background: linear-gradient(45deg, #6272a4, #7a88c2);
     color: #f8f8f2;
 }
 
-#name-submit-btn:hover, #ranking-close-btn:hover {
-    background-color: #7a88c2;
+#submitNameBtn:hover {
+    background: linear-gradient(45deg, #7a88c2, #8a98d0);
 }
 
-#name-skip-btn {
-    background-color: rgba(68, 71, 90, 0.8);
+#skipRankingBtn {
+    background: rgba(68, 71, 90, 0.8);
+    color: rgba(248, 248, 242, 0.8);
+    border: 1px solid rgba(248, 248, 242, 0.3);
+}
+
+#skipRankingBtn:hover {
+    background: rgba(100, 103, 120, 0.8);
+}
+
+.privacy-note {
+    font-size: 0.75rem;
+    color: rgba(248, 248, 242, 0.6);
+    margin: 0;
+}
+
+/* ランキング結果表示（結果画面内） */
+.ranking-results {
+    margin-top: 1.5rem;
+    padding: 1.5rem;
+    background: rgba(40, 42, 54, 0.6);
+    border-radius: 12px;
+    border: 1px solid rgba(248, 248, 242, 0.2);
+}
+
+.ranking-achievement h3 {
     color: #f8f8f2;
-    border: 1px solid rgba(248, 248, 242, 0.5);
+    text-align: center;
+    font-size: 1.2rem;
+    margin-bottom: 1rem;
 }
 
-#name-skip-btn:hover {
-    background-color: rgba(100, 103, 120, 0.8);
+.ranks-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.8rem;
+    margin-bottom: 1.5rem;
 }
 
-/* ランキングタブ */
+.rank-item {
+    text-align: center;
+    padding: 0.8rem 0.5rem;
+    background: rgba(68, 71, 90, 0.7);
+    border-radius: 8px;
+    border: 1px solid rgba(248, 248, 242, 0.1);
+}
+
+.rank-period {
+    font-size: 0.8rem;
+    color: rgba(248, 248, 242, 0.7);
+    margin-bottom: 0.3rem;
+}
+
+.rank-position {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #ffb86c;
+}
+
+.view-ranking-btn {
+    display: block;
+    width: 100%;
+    padding: 0.8rem;
+    background: linear-gradient(45deg, #50fa7b, #8be9fd);
+    color: #282a36;
+    border: none;
+    border-radius: 8px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.view-ranking-btn:hover {
+    background: linear-gradient(45deg, #5af78d, #9cf1ff);
+    transform: translateY(-2px);
+}
+
+/* フルランキングモーダル */
+.ranking-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.8);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 10000;
+}
+
+.ranking-content {
+    background: rgba(40, 42, 54, 0.95);
+    border-radius: 15px;
+    padding: 1.5rem;
+    width: 95%;
+    max-width: 700px;
+    max-height: 90vh;
+    overflow-y: auto;
+    border: 1px solid rgba(248, 248, 242, 0.2);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+}
+
+.ranking-header {
+    text-align: center;
+    margin-bottom: 1.5rem;
+    border-bottom: 2px solid rgba(248, 248, 242, 0.2);
+    padding-bottom: 1rem;
+}
+
+.ranking-header h2 {
+    color: #f8f8f2;
+    font-size: 1.8rem;
+    margin-bottom: 0.8rem;
+}
+
+.ranking-stats {
+    display: flex;
+    justify-content: center;
+    gap: 2rem;
+}
+
+.ranking-stats .stat {
+    color: rgba(248, 248, 242, 0.8);
+    font-size: 0.9rem;
+}
+
 .ranking-tabs {
     display: flex;
-    gap: 0.5rem;
+    gap: 0.3rem;
     margin-bottom: 1.5rem;
     border-bottom: 2px solid rgba(248, 248, 242, 0.2);
 }
 
-.ranking-tab {
+.tab-btn {
     flex: 1;
     padding: 0.8rem 1rem;
     border: none;
@@ -319,60 +432,36 @@ h1 .small-title {
     border-bottom: 3px solid transparent;
 }
 
-.ranking-tab:hover {
+.tab-btn:hover {
     color: #f8f8f2;
     background: rgba(68, 71, 90, 0.5);
 }
 
-.ranking-tab.active {
+.tab-btn.active {
     color: #f8f8f2;
     border-bottom-color: #6272a4;
     background: rgba(68, 71, 90, 0.8);
 }
 
-/* ランキングコンテンツ */
-.ranking-content {
-    position: relative;
+.ranking-list-container {
+    min-height: 300px;
 }
 
-.ranking-tab-content {
-    display: none;
-}
-
-.ranking-tab-content.active {
-    display: block;
-}
-
-.user-rank {
-    background: rgba(98, 114, 164, 0.3);
-    color: #f8f8f2;
-    padding: 0.8rem;
-    border-radius: 8px;
-    text-align: center;
-    margin-bottom: 1rem;
-    font-weight: 600;
-    border: 1px solid rgba(98, 114, 164, 0.5);
-}
-
-/* ランキングリスト */
 .ranking-list {
     display: flex;
     flex-direction: column;
-    gap: 0.3rem;
+    gap: 0.5rem;
 }
 
 .ranking-item {
-    display: grid;
-    grid-template-columns: 40px 1fr 80px 60px 60px;
-    gap: 0.5rem;
+    display: flex;
     align-items: center;
-    padding: 0.8rem;
-    border-radius: 8px;
+    padding: 1rem;
+    border-radius: 10px;
     background: rgba(68, 71, 90, 0.6);
     border: 1px solid rgba(248, 248, 242, 0.1);
-    color: #f8f8f2;
-    font-size: 0.9rem;
     transition: all 0.2s ease;
+    position: relative;
 }
 
 .ranking-item:hover {
@@ -383,80 +472,164 @@ h1 .small-title {
 .ranking-item.current-user {
     background: rgba(98, 114, 164, 0.4);
     border-color: rgba(98, 114, 164, 0.8);
-    font-weight: 600;
+    box-shadow: 0 0 10px rgba(98, 114, 164, 0.3);
 }
 
 .ranking-item .rank {
+    font-size: 1.1rem;
     font-weight: 700;
     color: #ffb86c;
+    margin-right: 1rem;
+    min-width: 60px;
     text-align: center;
 }
 
-.ranking-item .name {
+.player-info {
+    flex: 1;
+    color: #f8f8f2;
+}
+
+.player-name {
+    font-size: 1.1rem;
     font-weight: 600;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    margin-bottom: 0.3rem;
 }
 
-.ranking-item .score, 
-.ranking-item .percentage, 
-.ranking-item .time {
-    text-align: center;
-    font-family: monospace;
+.score-info {
+    font-size: 0.9rem;
+    color: rgba(248, 248, 242, 0.8);
+}
+
+.score-info .time {
+    color: #8be9fd;
+    margin-left: 0.5rem;
+}
+
+.you-badge {
+    position: absolute;
+    right: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    background: linear-gradient(45deg, #50fa7b, #8be9fd);
+    color: #282a36;
+    padding: 0.3rem 0.8rem;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 700;
 }
 
 .no-data {
     text-align: center;
-    color: rgba(248, 248, 242, 0.7);
-    padding: 2rem;
+    color: rgba(248, 248, 242, 0.5);
+    padding: 3rem;
     font-style: italic;
+    font-size: 1.1rem;
+}
+
+.ranking-actions {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    margin-top: 1.5rem;
+    padding-top: 1rem;
+    border-top: 1px solid rgba(248, 248, 242, 0.2);
+}
+
+.ranking-actions button {
+    padding: 0.8rem 2rem;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.share-btn {
+    background: linear-gradient(45deg, #50fa7b, #8be9fd);
+    color: #282a36;
+}
+
+.share-btn:hover {
+    background: linear-gradient(45deg, #5af78d, #9cf1ff);
+}
+
+.close-btn {
+    background: rgba(68, 71, 90, 0.8);
+    color: #f8f8f2;
+    border: 1px solid rgba(248, 248, 242, 0.3);
+}
+
+.close-btn:hover {
+    background: rgba(100, 103, 120, 0.8);
 }
 
 /* レスポンシブデザイン */
 @media (max-width: 768px) {
-    .ranking-modal-content {
-        width: 95%;
-        padding: 1.5rem;
+    .ranks-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.5rem;
+    }
+    
+    .ranking-stats {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .ranking-content {
+        padding: 1rem;
         margin: 1rem;
     }
     
-    .ranking-tabs {
-        flex-wrap: wrap;
-    }
-    
-    .ranking-tab {
+    .tab-btn {
         font-size: 0.8rem;
-        padding: 0.6rem 0.8rem;
+        padding: 0.6rem 0.5rem;
     }
     
     .ranking-item {
-        grid-template-columns: 30px 1fr 60px 50px 50px;
-        gap: 0.3rem;
-        padding: 0.6rem;
-        font-size: 0.8rem;
+        padding: 0.8rem;
     }
     
-    .ranking-modal-buttons {
+    .ranking-item .rank {
+        min-width: 50px;
+        font-size: 1rem;
+    }
+    
+    .player-name {
+        font-size: 1rem;
+    }
+    
+    .ranking-actions {
         flex-direction: column;
-        gap: 0.8rem;
-    }
-    
-    .ranking-modal-buttons button {
-        width: 100%;
     }
 }
 
 @media (max-width: 480px) {
-    .ranking-item {
-        grid-template-columns: 25px 1fr 50px 40px 45px;
-        gap: 0.2rem;
-        padding: 0.5rem;
-        font-size: 0.75rem;
+    .ranks-grid {
+        grid-template-columns: repeat(2, 1fr);
     }
     
-    .user-rank {
-        font-size: 0.9rem;
-        padding: 0.6rem;
+    .rank-item {
+        padding: 0.6rem 0.3rem;
+    }
+    
+    .rank-position {
+        font-size: 1rem;
+    }
+    
+    .name-prompt-content {
+        padding: 1.5rem;
+    }
+    
+    .ranking-header h2 {
+        font-size: 1.5rem;
+    }
+    
+    .you-badge {
+        position: relative;
+        right: auto;
+        top: auto;
+        transform: none;
+        margin-top: 0.5rem;
+        align-self: flex-start;
     }
 }

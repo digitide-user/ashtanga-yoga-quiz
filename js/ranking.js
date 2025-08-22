@@ -1,4 +1,3 @@
-// ランキング機能
 class LocalRankingSystem {
     constructor() {
         this.storageKey = 'yoga-quiz-rankings';
@@ -8,7 +7,6 @@ class LocalRankingSystem {
         this.currentUser = this.loadUser();
     }
 
-    // ローカルストレージからランキングデータを読み込み
     loadRankings() {
         const saved = localStorage.getItem(this.storageKey);
         return saved ? JSON.parse(saved) : {
@@ -24,20 +22,14 @@ class LocalRankingSystem {
         return saved ? JSON.parse(saved) : null;
     }
 
-    saveUser() {
-        localStorage.setItem(this.userStorageKey, JSON.stringify(this.currentUser));
-    }
-
-    generateId() {
-        return Date.now().toString(36) + Math.random().toString(36).substr(2);
-    }
-
-    // ランキングデータをローカルストレージに保存
     saveRankings() {
         localStorage.setItem(this.storageKey, JSON.stringify(this.rankings));
     }
 
-    // スコア登録のメイン処理
+    saveUser() {
+        localStorage.setItem(this.userStorageKey, JSON.stringify(this.currentUser));
+    }
+
     addScore(score, totalQuestions, timeSpent) {
         if (!this.currentUser) {
             this.showNamePrompt((userName) => {
@@ -48,53 +40,6 @@ class LocalRankingSystem {
         }
     }
 
-    // 名前入力プロンプト表示
-    showNamePrompt(callback) {
-        const nameModal = document.createElement('div');
-        nameModal.className = 'ranking-modal';
-        nameModal.innerHTML = `
-            <div class="ranking-modal-content">
-                <h3>ランキング登録</h3>
-                <p>ランキングに登録するニックネームを入力してください：</p>
-                <input type="text" id="user-name-input" placeholder="ニックネーム" maxlength="20">
-                <div class="ranking-modal-buttons">
-                    <button id="name-submit-btn">登録</button>
-                    <button id="name-skip-btn">スキップ</button>
-                </div>
-            </div>
-        `;
-
-        document.body.appendChild(nameModal);
-
-        const nameInput = document.getElementById('user-name-input');
-        const submitBtn = document.getElementById('name-submit-btn');
-        const skipBtn = document.getElementById('name-skip-btn');
-
-        nameInput.focus();
-
-        const handleSubmit = () => {
-            const userName = nameInput.value.trim();
-            if (userName) {
-                document.body.removeChild(nameModal);
-                callback(userName);
-            } else {
-                nameInput.style.borderColor = '#ff6b6b';
-                nameInput.placeholder = 'ニックネームを入力してください';
-            }
-        };
-
-        const handleSkip = () => {
-            document.body.removeChild(nameModal);
-        };
-
-        submitBtn.addEventListener('click', handleSubmit);
-        skipBtn.addEventListener('click', handleSkip);
-        nameInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') handleSubmit();
-        });
-    }
-
-    // 実際のスコア登録処理
     registerScore(userName, score, totalQuestions, timeSpent) {
         const now = new Date();
         const scoreEntry = {
@@ -108,260 +53,299 @@ class LocalRankingSystem {
             date: now.toISOString().split('T')[0]
         };
 
-        console.log('[DEBUG] Registering score:', scoreEntry);
-
-        // ユーザー情報保存
         this.currentUser = { name: userName };
         this.saveUser();
 
-        // 各期間のランキングに追加
         this.addToRanking('allTime', scoreEntry);
         this.addToRanking('monthly', scoreEntry);
         this.addToRanking('weekly', scoreEntry);
         this.addToRanking('daily', scoreEntry);
 
-        // 古いデータのクリーンアップ
         this.cleanupOldData();
         this.saveRankings();
 
-        // 結果表示
         this.showRankingResults(scoreEntry);
     }
 
-    // ランキングにスコアを追加
     addToRanking(period, scoreEntry) {
         if (!this.rankings[period]) {
             this.rankings[period] = [];
         }
 
         this.rankings[period].push(scoreEntry);
-
-        // スコア順（降順）でソート、同点の場合は時間順（昇順）
         this.rankings[period].sort((a, b) => {
-            if (a.score !== b.score) {
-                return b.score - a.score; // スコア高い順
-            }
-            if (a.percentage !== b.percentage) {
-                return b.percentage - a.percentage; // 正答率高い順
-            }
-            return a.timeSpent - b.timeSpent; // 時間短い順
+            if (b.score !== a.score) return b.score - a.score;
+            if (b.percentage !== a.percentage) return b.percentage - a.percentage;
+            return a.timeSpent - b.timeSpent;
         });
 
-        // 上位50位まで保持
-        if (this.rankings[period].length > this.maxRankingEntries) {
-            this.rankings[period] = this.rankings[period].slice(0, this.maxRankingEntries);
+        this.rankings[period] = this.rankings[period].slice(0, this.maxRankingEntries);
+    }
+
+    cleanupOldData() {
+        const now = new Date();
+        const oneDayAgo = now.getTime() - (24 * 60 * 60 * 1000);
+        const oneWeekAgo = now.getTime() - (7 * 24 * 60 * 60 * 1000);
+        const oneMonthAgo = now.getTime() - (30 * 24 * 60 * 60 * 1000);
+
+        this.rankings.daily = this.rankings.daily.filter(entry => entry.timestamp > oneDayAgo);
+        this.rankings.weekly = this.rankings.weekly.filter(entry => entry.timestamp > oneWeekAgo);
+        this.rankings.monthly = this.rankings.monthly.filter(entry => entry.timestamp > oneMonthAgo);
+    }
+
+    showNamePrompt(callback) {
+        const modal = document.createElement('div');
+        modal.className = 'name-prompt-modal';
+        modal.innerHTML = `
+            <div class="name-prompt-content">
+                <h3>🏆 ランキングに参加</h3>
+                <p>お名前（ニックネーム）を入力してください</p>
+                <input type="text" id="userName" placeholder="例: ヨガ太郎" maxlength="20">
+                <div class="name-prompt-buttons">
+                    <button id="submitNameBtn">登録してランキングを見る</button>
+                    <button id="skipRankingBtn">今回はスキップ</button>
+                </div>
+                <p class="privacy-note">※お名前はランキング表示にのみ使用されます</p>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+
+        document.getElementById('submitNameBtn').onclick = () => {
+            const userName = document.getElementById('userName').value.trim();
+            if (userName) {
+                document.body.removeChild(modal);
+                callback(userName);
+            } else {
+                alert('お名前を入力してください');
+            }
+        };
+
+        document.getElementById('skipRankingBtn').onclick = () => {
+            document.body.removeChild(modal);
+        };
+
+        document.getElementById('userName').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                document.getElementById('submitNameBtn').click();
+            }
+        });
+
+        setTimeout(() => document.getElementById('userName').focus(), 100);
+    }
+
+    showRankingResults(userScore) {
+        const userRanks = {
+            daily: this.getUserRank('daily', userScore.id),
+            weekly: this.getUserRank('weekly', userScore.id),
+            monthly: this.getUserRank('monthly', userScore.id),
+            allTime: this.getUserRank('allTime', userScore.id)
+        };
+
+        const resultsContainer = document.getElementById('result-container');
+        if (resultsContainer) {
+            const rankingInfo = document.createElement('div');
+            rankingInfo.className = 'ranking-results';
+            rankingInfo.innerHTML = `
+                <div class="ranking-achievement">
+                    <h3>🏆 あなたの順位</h3>
+                    <div class="ranks-grid">
+                        <div class="rank-item">
+                            <div class="rank-period">今日</div>
+                            <div class="rank-position">${userRanks.daily || '-'}位</div>
+                        </div>
+                        <div class="rank-item">
+                            <div class="rank-period">今週</div>
+                            <div class="rank-position">${userRanks.weekly || '-'}位</div>
+                        </div>
+                        <div class="rank-item">
+                            <div class="rank-period">今月</div>
+                            <div class="rank-position">${userRanks.monthly || '-'}位</div>
+                        </div>
+                        <div class="rank-item">
+                            <div class="rank-period">総合</div>
+                            <div class="rank-position">${userRanks.allTime || '-'}位</div>
+                        </div>
+                    </div>
+                    <button onclick="rankingSystem.showFullRanking()" class="view-ranking-btn">
+                        📊 詳細ランキングを見る
+                    </button>
+                </div>
+            `;
+            
+            const rewardElement = resultsContainer.querySelector('#reward');
+            if (rewardElement) {
+                rewardElement.after(rankingInfo);
+            } else {
+                resultsContainer.appendChild(rankingInfo);
+            }
         }
     }
 
-    // 古いデータのクリーンアップ
-    cleanupOldData() {
-        const now = new Date();
-        const today = now.toISOString().split('T')[0];
+    showFullRanking() {
+        const modal = document.createElement('div');
+        modal.className = 'ranking-modal';
         
-        // 今日のデータのみ保持（日次ランキング）
-        this.rankings.daily = this.rankings.daily.filter(entry => entry.date === today);
-
-        // 今週のデータのみ保持（週次ランキング）
-        const weekStart = new Date(now);
-        weekStart.setDate(now.getDate() - now.getDay()); // 今週の日曜日
-        weekStart.setHours(0, 0, 0, 0);
-        
-        this.rankings.weekly = this.rankings.weekly.filter(entry => {
-            const entryDate = new Date(entry.timestamp);
-            return entryDate >= weekStart;
-        });
-
-        // 今月のデータのみ保持（月次ランキング）
-        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-        this.rankings.monthly = this.rankings.monthly.filter(entry => {
-            const entryDate = new Date(entry.timestamp);
-            return entryDate >= monthStart;
-        });
-    }
-
-    // ランキング結果表示
-    showRankingResults(currentEntry) {
-        const rankingModal = document.createElement('div');
-        rankingModal.className = 'ranking-modal ranking-results';
-        
-        const periods = [
-            { key: 'daily', label: '今日' },
-            { key: 'weekly', label: '今週' },
-            { key: 'monthly', label: '今月' },
-            { key: 'allTime', label: '総合' }
-        ];
-
-        let tabsHtml = '<div class="ranking-tabs">';
-        let contentHtml = '<div class="ranking-content">';
-
-        periods.forEach((period, index) => {
-            const ranking = this.rankings[period.key] || [];
-            const userRank = ranking.findIndex(entry => entry.id === currentEntry.id) + 1;
-            
-            tabsHtml += `<button class="ranking-tab ${index === 0 ? 'active' : ''}" data-period="${period.key}">${period.label}</button>`;
-            
-            contentHtml += `<div class="ranking-tab-content ${index === 0 ? 'active' : ''}" data-period="${period.key}">`;
-            contentHtml += `<div class="user-rank">あなたの順位: ${userRank > 0 ? userRank + '位' : '圏外'}</div>`;
-            contentHtml += '<div class="ranking-list">';
-            
-            ranking.slice(0, 10).forEach((entry, idx) => {
-                const isCurrentUser = entry.id === currentEntry.id;
-                contentHtml += `
-                    <div class="ranking-item ${isCurrentUser ? 'current-user' : ''}">
-                        <span class="rank">${idx + 1}</span>
-                        <span class="name">${entry.name}</span>
-                        <span class="score">${entry.score}/${entry.totalQuestions}</span>
-                        <span class="percentage">${entry.percentage}%</span>
-                        <span class="time">${this.formatTime(entry.timeSpent)}</span>
+        modal.innerHTML = `
+            <div class="ranking-content">
+                <div class="ranking-header">
+                    <h2>🏆 ランキング</h2>
+                    <div class="ranking-stats">
+                        <div class="stat">総参加者: ${this.getTotalPlayers()}人</div>
+                        <div class="stat">総ゲーム数: ${this.getTotalGames()}回</div>
                     </div>
-                `;
-            });
-            
-            contentHtml += '</div></div>';
-        });
+                </div>
+                
+                <div class="ranking-tabs">
+                    <button class="tab-btn active" data-period="daily">今日</button>
+                    <button class="tab-btn" data-period="weekly">今週</button>
+                    <button class="tab-btn" data-period="monthly">今月</button>
+                    <button class="tab-btn" data-period="allTime">総合</button>
+                </div>
 
-        tabsHtml += '</div>';
-        contentHtml += '</div>';
+                <div class="ranking-list-container">
+                    ${this.generateRankingHTML('daily')}
+                    ${this.generateRankingHTML('weekly')}
+                    ${this.generateRankingHTML('monthly')}
+                    ${this.generateRankingHTML('allTime')}
+                </div>
 
-        rankingModal.innerHTML = `
-            <div class="ranking-modal-content">
-                <h3>🏆 ランキング結果</h3>
-                ${tabsHtml}
-                ${contentHtml}
-                <div class="ranking-modal-buttons">
-                    <button id="ranking-close-btn">閉じる</button>
+                <div class="ranking-actions">
+                    <button onclick="rankingSystem.shareRanking()" class="share-btn">📱 シェア</button>
+                    <button onclick="rankingSystem.closeRankingModal()" class="close-btn">閉じる</button>
                 </div>
             </div>
         `;
 
-        document.body.appendChild(rankingModal);
+        document.body.appendChild(modal);
 
-        // タブ切り替え機能
-        const tabs = rankingModal.querySelectorAll('.ranking-tab');
-        const tabContents = rankingModal.querySelectorAll('.ranking-tab-content');
-        
-        tabs.forEach(tab => {
-            tab.addEventListener('click', () => {
-                const period = tab.dataset.period;
-                
-                tabs.forEach(t => t.classList.remove('active'));
-                tabContents.forEach(c => c.classList.remove('active'));
-                
-                tab.classList.add('active');
-                rankingModal.querySelector(`[data-period="${period}"]`).classList.add('active');
+        modal.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                modal.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+
+                const period = btn.dataset.period;
+                modal.querySelectorAll('.ranking-list').forEach(list => {
+                    list.style.display = list.dataset.period === period ? 'block' : 'none';
+                });
             });
         });
-
-        // 閉じるボタン
-        document.getElementById('ranking-close-btn').addEventListener('click', () => {
-            document.body.removeChild(rankingModal);
-        });
     }
 
-    // ユーザーの最高記録を取得
-    getUserBestScore(nickname) {
-        const userEntries = this.rankings.filter(entry => entry.nickname === nickname);
-        if (userEntries.length === 0) return null;
+    generateRankingHTML(period) {
+        const rankings = this.rankings[period] || [];
+        const displayStyle = period === 'daily' ? 'block' : 'none';
 
-        return userEntries.reduce((best, current) => {
-            if (current.score > best.score) return current;
-            if (current.score === best.score && current.accuracy > best.accuracy) return current;
-            if (current.score === best.score && current.accuracy === best.accuracy && current.timeSpent < best.timeSpent) return current;
-            return best;
-        });
-    }
-
-    // 統計情報を取得
-    getStats() {
-        if (this.rankings.length === 0) {
-            return {
-                totalGames: 0,
-                averageScore: 0,
-                averageAccuracy: 0,
-                bestScore: 0
-            };
-        }
-
-        const totalGames = this.rankings.length;
-        const averageScore = this.rankings.reduce((sum, entry) => sum + entry.score, 0) / totalGames;
-        const averageAccuracy = this.rankings.reduce((sum, entry) => sum + entry.accuracy, 0) / totalGames;
-        const bestScore = Math.max(...this.rankings.map(entry => entry.score));
-
-        return {
-            totalGames,
-            averageScore: Math.round(averageScore * 10) / 10,
-            averageAccuracy: Math.round(averageAccuracy * 10) / 10,
-            bestScore
-        };
-    }
-
-    // ランキング表示用HTML生成
-    generateRankingHTML(period = 'all') {
-        const rankings = this.getRankingsByPeriod(period);
+        let html = `<div class="ranking-list" data-period="${period}" style="display: ${displayStyle};">`;
+        
         if (rankings.length === 0) {
-            return '<p class="no-data">まだデータがありません</p>';
+            html += '<div class="no-data">まだデータがありません</div>';
+        } else {
+            rankings.slice(0, 10).forEach((entry, index) => {
+                const isCurrentUser = entry.name === this.currentUser?.name;
+                const timeDisplay = this.formatTime(entry.timeSpent);
+                const rankIcon = this.getRankIcon(index + 1);
+                
+                html += `
+                    <div class="ranking-item ${isCurrentUser ? 'current-user' : ''}">
+                        <div class="rank">${rankIcon}${index + 1}</div>
+                        <div class="player-info">
+                            <div class="player-name">${entry.name}</div>
+                            <div class="score-info">
+                                ${entry.score}/${entry.totalQuestions}問 (${entry.percentage}%) 
+                                <span class="time">⏱️${timeDisplay}</span>
+                            </div>
+                        </div>
+                        ${isCurrentUser ? '<div class="you-badge">あなた</div>' : ''}
+                    </div>
+                `;
+            });
         }
-
-        let html = '<div class="ranking-list">';
-        rankings.forEach((entry, index) => {
-            const rank = index + 1;
-            const medal = this.getMedalIcon(rank);
-            const date = new Date(entry.date).toLocaleDateString('ja-JP');
-            
-            html += `
-                <div class="ranking-item">
-                    <span class="rank">${medal} ${rank}位</span>
-                    <span class="nickname">${entry.nickname}</span>
-                    <span class="score">${entry.score}/${entry.totalQuestions}</span>
-                    <span class="accuracy">${entry.accuracy.toFixed(1)}%</span>
-                    <span class="time">${this.formatTime(entry.timeSpent)}</span>
-                    <span class="date">${date}</span>
-                </div>
-            `;
-        });
+        
         html += '</div>';
-
         return html;
     }
 
-    // メダルアイコンを取得
-    getMedalIcon(rank) {
-        switch (rank) {
-            case 1: return '🥇';
-            case 2: return '🥈';
-            case 3: return '🥉';
-            default: return '🏅';
+    getRankIcon(rank) {
+        switch(rank) {
+            case 1: return '🥇 ';
+            case 2: return '🥈 ';
+            case 3: return '🥉 ';
+            default: return '';
         }
     }
 
-    // 時間をフォーマット（秒を分:秒に変換）
+    getUserRank(period, scoreId) {
+        const rankings = this.rankings[period] || [];
+        const index = rankings.findIndex(entry => entry.id === scoreId);
+        return index >= 0 ? index + 1 : null;
+    }
+
+    getTotalPlayers() {
+        const allTimeRankings = this.rankings.allTime || [];
+        return new Set(allTimeRankings.map(entry => entry.name)).size;
+    }
+
+    getTotalGames() {
+        const allTimeRankings = this.rankings.allTime || [];
+        return allTimeRankings.length;
+    }
+
+    shareRanking() {
+        const bestRank = this.getBestRank();
+        const shareText = `アシュタンガヨガクイズに挑戦中！\n現在の最高順位: ${bestRank}位 🏆\n\nあなたも挑戦してみませんか？\n#アシュタンガヨガ #ヨガクイズ #ランキング`;
+
+        if (navigator.share) {
+            navigator.share({
+                title: 'アシュタンガヨガクイズ',
+                text: shareText,
+                url: window.location.href
+            });
+        } else {
+            navigator.clipboard.writeText(shareText + '\n' + window.location.href)
+                .then(() => alert('シェア用テキストをクリップボードにコピーしました！'))
+                .catch(() => alert('シェア用テキスト:\n' + shareText + '\n' + window.location.href));
+        }
+    }
+
+    getBestRank() {
+        const user = this.currentUser?.name;
+        if (!user) return null;
+
+        const ranks = [];
+        Object.values(this.rankings).forEach(periodRankings => {
+            const userEntry = periodRankings.find(entry => entry.name === user);
+            if (userEntry) {
+                const rank = periodRankings.indexOf(userEntry) + 1;
+                ranks.push(rank);
+            }
+        });
+
+        return ranks.length > 0 ? Math.min(...ranks) : null;
+    }
+
+    closeRankingModal() {
+        const modal = document.querySelector('.ranking-modal');
+        if (modal) {
+            document.body.removeChild(modal);
+        }
+    }
+
     formatTime(seconds) {
         const minutes = Math.floor(seconds / 60);
         const remainingSeconds = seconds % 60;
         return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
     }
 
-    // ユーザー名変更
-    changeUserName() {
-        this.showNamePrompt((userName) => {
-            this.currentUser = { name: userName };
-            this.saveUser();
-            console.log('[DEBUG] User name changed to:', userName);
-        });
-    }
-
-    // ランキング表示（スコア登録なし）
-    showRankings() {
-        this.cleanupOldData();
-        const dummyEntry = { id: 'dummy' };
-        this.showRankingResults(dummyEntry);
-    }
-
-    // 現在のユーザー名取得
-    getCurrentUserName() {
-        return this.currentUser ? this.currentUser.name : null;
+    generateId() {
+        return Date.now().toString(36) + Math.random().toString(36).substr(2);
     }
 }
 
-// グローバルインスタンス
-const rankingSystem = new LocalRankingSystem();
+// グローバル変数として初期化
+let rankingSystem;
+
+// DOM読み込み完了時に初期化
+document.addEventListener('DOMContentLoaded', () => {
+    rankingSystem = new LocalRankingSystem();
+});
