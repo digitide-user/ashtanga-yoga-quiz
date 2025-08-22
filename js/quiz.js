@@ -87,8 +87,8 @@ function setupQuiz() {
     }, 100);
 }
 
-// iPhone Safari検出
-const isIOSSafari = /iPhone|iPad/.test(navigator.userAgent) && /Safari/.test(navigator.userAgent);
+// iPhone Safari検出（緊急修正：一時的に無効化）
+const isIOSSafari = false; // 緊急修正: DOM再作成処理を無効化してボタン表示を優先
 
 // 超強力リセット処理（iPhone Safari 専用）
 function forceResetButtonStates() {
