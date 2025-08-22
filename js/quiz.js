@@ -73,11 +73,59 @@ let questions = [];
 
 // クイズの質問をシャッフルして準備
 function setupQuiz() {
+    // 開始時にすべてのボタン状態をクリア
+    resetAllButtonStates();
+    
     const shuffledQuestions = [...quizData].sort(() => Math.random() - 0.5);
     questions = shuffledQuestions.slice(0, 10);
     currentQuestionIndex = 0;
     score = 0;
-    loadQuiz();
+    
+    // 少し遅延してからクイズを開始（iOS Safari対応）
+    setTimeout(() => {
+        loadQuiz();
+    }, 100);
+}
+
+// ボタン状態を完全にリセットする専用関数
+function resetAllButtonStates() {
+    // すべてのボタンを取得（選択肢ボタンとその他のボタン）
+    const allButtons = document.querySelectorAll('button, .choice-btn, [data-answer]');
+    
+    allButtons.forEach(button => {
+        // CSSクラスをすべて削除
+        button.classList.remove('selected', 'active', 'clicked', 'pressed', 'focus', 'hover-state');
+        
+        // インラインスタイルを完全にクリア
+        button.style.backgroundColor = '';
+        button.style.borderColor = '';
+        button.style.color = '';
+        button.style.transform = '';
+        button.style.boxShadow = '';
+        button.style.opacity = '';
+        button.style.filter = '';
+        
+        // data属性をクリア
+        button.removeAttribute('data-selected');
+        button.removeAttribute('data-clicked');
+        
+        // ボタンを有効化
+        button.disabled = false;
+        
+        // フォーカス状態を解除
+        if (button.blur) button.blur();
+        
+        // iOS Safari 対応: -webkit プロパティもクリア
+        button.style.webkitTransform = '';
+        button.style.webkitBoxShadow = '';
+        button.style.webkitFilter = '';
+    });
+    
+    // さらに確実にするため、選択肢コンテナ全体もリセット
+    if (optionsContainer) {
+        optionsContainer.style.transform = '';
+        optionsContainer.style.opacity = '';
+    }
 }
 
 function loadQuiz() {
@@ -86,37 +134,50 @@ function loadQuiz() {
         return;
     }
 
-    // ボタンの選択状態を完全にリセット
-    const allButtons = document.querySelectorAll('button');
-    allButtons.forEach(button => {
-        button.classList.remove('selected', 'active', 'clicked', 'pressed');
-        button.style.backgroundColor = '';
-        button.style.borderColor = '';
-        button.style.transform = '';
-        button.style.boxShadow = '';
-        button.blur(); // フォーカス状態を解除
-    });
+    // 問題表示の最初にボタン状態を完全リセット
+    resetAllButtonStates();
 
     const currentQuestion = questions[currentQuestionIndex];
     imageContainer.innerHTML = `<img src="images/${currentQuestion.imageName}" alt="ヨガのポーズ">`;
 
     const options = createOptions(currentQuestion.answer);
     optionsContainer.innerHTML = '';
-    options.forEach(option => {
+    
+    // 選択肢ボタンを作成
+    options.forEach((option, index) => {
         const button = document.createElement('button');
         button.innerText = option;
-        button.addEventListener('click', () => {
+        button.className = 'choice-btn'; // 明確なクラス名を付与
+        button.setAttribute('data-answer', option);
+        button.setAttribute('data-index', index);
+        
+        button.addEventListener('click', (e) => {
+            // 二重クリック防止
+            if (button.disabled) return;
+            button.disabled = true;
+            
+            // すべてのボタンを無効化
+            const allChoiceButtons = optionsContainer.querySelectorAll('button');
+            allChoiceButtons.forEach(btn => btn.disabled = true);
+            
             // クリック時の視覚的フィードバック
-            button.style.transform = 'scale(0.98)';
+            button.style.transform = 'scale(0.95)';
             button.style.backgroundColor = 'rgba(150, 153, 170, 0.9)';
+            button.style.borderColor = '#fff';
             
             // 少し遅延してから次の問題に進む
             setTimeout(() => {
                 checkAnswer(option, currentQuestion.answer);
-            }, 150);
+            }, 200);
         });
+        
         optionsContainer.appendChild(button);
     });
+    
+    // 新しいボタンが追加された後、再度リセット（iOS Safari対応）
+    setTimeout(() => {
+        resetAllButtonStates();
+    }, 50);
 }
 
 function createOptions(correctAnswer) {
@@ -244,9 +305,16 @@ function showResult() {
 }
 
 restartBtn.addEventListener('click', () => {
+    // リスタート時にもボタン状態を完全リセット
+    resetAllButtonStates();
+    
     resultContainer.classList.add('hidden');
     quizContainer.classList.remove('hidden');
-    setupQuiz();
+    
+    // 少し遅延してからクイズを再開始
+    setTimeout(() => {
+        setupQuiz();
+    }, 100);
 });
 
 shareInstagramBtn.addEventListener('click', () => {
