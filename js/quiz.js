@@ -122,20 +122,12 @@ function createOptions(correctAnswer) {
     const correctPose = quizData.find(q => q.answer === correctAnswer);
     const correctCategories = correctPose ? correctPose.category : [];
 
-    // 1. 似た名前のポーズを収集 (最優先、最大2つまで)
+    // 1. 似た名前のポーズを収集 (最優先、最大2つまで) - 基本名一致のみ
     let similarNameAnswers = quizData
         .filter(q => {
             if (q.answer === correctAnswer) return false;
-            // 既存の完全一致チェック
-            if (getBaseName(q.answer) === correctBaseName) return true;
-            // コア名での類似チェック（クルマーサナ ↔ スプタ・クルマーサナ）
-            if (getCoreName(q.answer) === correctCoreName && correctCoreName.length > 4) return true;
-            // 部分文字列での類似チェック（より広範囲）
-            const qCoreName = getCoreName(q.answer);
-            if (qCoreName.length > 4 && correctCoreName.length > 4) {
-                if (qCoreName.includes(correctCoreName) || correctCoreName.includes(qCoreName)) return true;
-            }
-            return false;
+            // 基本名一致のみ（A/B/C/D等のバリエーション）
+            return getBaseName(q.answer) === correctBaseName;
         })
         .map(q => q.answer);
 
@@ -155,9 +147,19 @@ function createOptions(correctAnswer) {
                 if (options.includes(q.answer) || q.answer === correctAnswer) return false;
                 const qCoreName = getCoreName(q.answer);
                 const qBaseName = getBaseName(q.answer);
-                // 既に類似名前として処理されていない関連ポーズを探す
-                // 同一基本名（A/B/C等）は除外し、プレフィックス違いのみを対象とする
-                return qCoreName === correctCoreName && qCoreName.length > 4 && qBaseName !== correctBaseName;
+                
+                // 同一基本名（A/B/C等）は除外済みなので、プレフィックス違いや類似ポーズを探す
+                if (qBaseName === correctBaseName) return false;
+                
+                // コア名での類似チェック（クルマーサナ ↔ スプタ・クルマーサナ）
+                if (qCoreName === correctCoreName && correctCoreName.length > 4) return true;
+                
+                // 部分文字列での類似チェック（より広範囲）
+                if (qCoreName.length > 4 && correctCoreName.length > 4) {
+                    if (qCoreName.includes(correctCoreName) || correctCoreName.includes(qCoreName)) return true;
+                }
+                
+                return false;
             })
             .map(q => q.answer);
 
