@@ -53,32 +53,41 @@ class LocalRankingSystem {
             date: now.toISOString().split('T')[0]
         };
 
+        // ユーザー情報保存
         this.currentUser = { name: userName };
         this.saveUser();
 
+        // 各期間のランキングに追加
         this.addToRanking('allTime', scoreEntry);
         this.addToRanking('monthly', scoreEntry);
         this.addToRanking('weekly', scoreEntry);
         this.addToRanking('daily', scoreEntry);
 
+        // 古いデータのクリーンアップ（この処理を最後に移動）
         this.cleanupOldData();
+        
+        // 保存
         this.saveRankings();
 
         this.showRankingResults(scoreEntry);
     }
 
     addToRanking(period, scoreEntry) {
+        // 配列の初期化を確実にする
         if (!this.rankings[period]) {
             this.rankings[period] = [];
         }
 
         this.rankings[period].push(scoreEntry);
+        
+        // スコア順でソート
         this.rankings[period].sort((a, b) => {
             if (b.score !== a.score) return b.score - a.score;
             if (b.percentage !== a.percentage) return b.percentage - a.percentage;
             return a.timeSpent - b.timeSpent;
         });
 
+        // 上位エントリーのみ保持
         this.rankings[period] = this.rankings[period].slice(0, this.maxRankingEntries);
     }
 
@@ -88,9 +97,17 @@ class LocalRankingSystem {
         const oneWeekAgo = now.getTime() - (7 * 24 * 60 * 60 * 1000);
         const oneMonthAgo = now.getTime() - (30 * 24 * 60 * 60 * 1000);
 
+        // 配列の初期化を確実にする
+        if (!this.rankings.daily) this.rankings.daily = [];
+        if (!this.rankings.weekly) this.rankings.weekly = [];
+        if (!this.rankings.monthly) this.rankings.monthly = [];
+        if (!this.rankings.allTime) this.rankings.allTime = [];
+
+        // 期間フィルタリング
         this.rankings.daily = this.rankings.daily.filter(entry => entry.timestamp > oneDayAgo);
         this.rankings.weekly = this.rankings.weekly.filter(entry => entry.timestamp > oneWeekAgo);
         this.rankings.monthly = this.rankings.monthly.filter(entry => entry.timestamp > oneMonthAgo);
+        // allTimeは削除しない
     }
 
     showNamePrompt(callback) {
