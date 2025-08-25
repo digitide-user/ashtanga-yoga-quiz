@@ -362,6 +362,28 @@ h1 .small-title {
     transform: translateY(-2px);
 }
 
+/* オンライン/ローカル状態表示 */
+.online-status, .local-status {
+    text-align: center;
+    margin-top: 1rem;
+    padding: 0.5rem;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.online-status {
+    background: rgba(80, 250, 123, 0.2);
+    color: #50fa7b;
+    border: 1px solid rgba(80, 250, 123, 0.4);
+}
+
+.local-status {
+    background: rgba(139, 233, 253, 0.2);
+    color: #8be9fd;
+    border: 1px solid rgba(139, 233, 253, 0.4);
+}
+
 /* フルランキングモーダル */
 .ranking-modal {
     position: fixed;

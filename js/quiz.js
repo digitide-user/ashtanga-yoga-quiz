@@ -378,10 +378,21 @@ function showResult() {
     
     rewardElement.innerText = rewardMessage;
     
-    // ランキング機能を統合（少し遅延して表示）
-    setTimeout(() => {
+    // ランキング機能を統合（ハイブリッドモード）
+    setTimeout(async () => {
         if (typeof rankingSystem !== 'undefined' && rankingSystem) {
-            rankingSystem.addScore(score, questions.length, totalTimeSpent);
+            // OnlineRankingSystemのハイブリッドモードを使用
+            if (rankingSystem.addScoreHybrid) {
+                await rankingSystem.addScoreHybrid(
+                    rankingSystem.localSystem?.currentUser?.name || 'ゲスト',
+                    score, 
+                    questions.length, 
+                    totalTimeSpent
+                );
+            } else {
+                // フォールバック：LocalRankingSystemの場合
+                rankingSystem.addScore(score, questions.length, totalTimeSpent);
+            }
         }
     }, 1500);
 }

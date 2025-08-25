@@ -253,12 +253,15 @@ class LocalRankingSystem {
         const rankings = this.rankings[period] || [];
         const displayStyle = period === 'daily' ? 'block' : 'none';
 
+        // 同一ユーザーのベストスコアのみ抽出
+        const bestScoresByUser = this.getBestScoresByUser(rankings);
+
         let html = `<div class="ranking-list" data-period="${period}" style="display: ${displayStyle};">`;
         
-        if (rankings.length === 0) {
+        if (bestScoresByUser.length === 0) {
             html += '<div class="no-data">まだデータがありません</div>';
         } else {
-            rankings.slice(0, 10).forEach((entry, index) => {
+            bestScoresByUser.slice(0, 10).forEach((entry, index) => {
                 const isCurrentUser = entry.name === this.currentUser?.name;
                 const timeDisplay = this.formatTime(entry.timeSpent);
                 const rankIcon = this.getRankIcon(index + 1);
@@ -281,6 +284,38 @@ class LocalRankingSystem {
         
         html += '</div>';
         return html;
+    }
+
+    // 同一ユーザーのベストスコアのみを抽出
+    getBestScoresByUser(rankings) {
+        const userBestScores = new Map();
+
+        rankings.forEach(entry => {
+            const existing = userBestScores.get(entry.name);
+            
+            if (!existing) {
+                userBestScores.set(entry.name, entry);
+            } else {
+                // より良いスコアか判定（スコア > 正答率 > 時間短縮）
+                if (this.isBetterScore(entry, existing)) {
+                    userBestScores.set(entry.name, entry);
+                }
+            }
+        });
+
+        // MapからArrayに変換してソート
+        return Array.from(userBestScores.values()).sort((a, b) => {
+            if (b.score !== a.score) return b.score - a.score;
+            if (b.percentage !== a.percentage) return b.percentage - a.percentage;
+            return a.timeSpent - b.timeSpent;
+        });
+    }
+
+    // スコア比較（aがbより良いかどうか）
+    isBetterScore(a, b) {
+        if (a.score !== b.score) return a.score > b.score;
+        if (a.percentage !== b.percentage) return a.percentage > b.percentage;
+        return a.timeSpent < b.timeSpent;
     }
 
     getRankIcon(rank) {
@@ -359,10 +394,200 @@ class LocalRankingSystem {
     }
 }
 
+// オンラインランキングシステム
+class OnlineRankingSystem {
+    constructor() {
+        this.apiUrl = ''; // Google Apps Script URLを後で設定
+        this.fallbackToLocal = true; // オンライン失敗時はローカル版使用
+        this.timeout = 10000; // 10秒タイムアウト
+        this.localSystem = new LocalRankingSystem();
+    }
+
+    // オンラインにスコア送信
+    async submitScoreOnline(scoreData) {
+        try {
+            console.log('Submitting score online:', scoreData);
+            
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), this.timeout);
+            
+            const response = await fetch(this.apiUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    action: 'addScore',
+                    data: scoreData
+                }),
+                signal: controller.signal
+            });
+            
+            clearTimeout(timeoutId);
+            const result = await response.json();
+            return result.success;
+        } catch (error) {
+            console.error('Online submission failed:', error);
+            return false;
+        }
+    }
+
+    // オンラインからランキング取得
+    async getRankingsOnline() {
+        try {
+            console.log('Fetching online rankings...');
+            
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), this.timeout);
+            
+            const response = await fetch(`${this.apiUrl}?action=getRankings`, {
+                signal: controller.signal
+            });
+            
+            clearTimeout(timeoutId);
+            const result = await response.json();
+            return result.success ? result.rankings : null;
+        } catch (error) {
+            console.error('Online rankings fetch failed:', error);
+            return null;
+        }
+    }
+
+    // ハイブリッド処理（オンライン優先、失敗時はローカル）
+    async addScoreHybrid(userName, score, totalQuestions, timeSpent) {
+        const scoreData = {
+            name: userName,
+            score: score,
+            totalQuestions: totalQuestions,
+            percentage: Math.round((score / totalQuestions) * 100),
+            timeSpent: timeSpent,
+            timestamp: Date.now(),
+            userAgent: navigator.userAgent.substring(0, 100), // デバイス判別用
+            sessionId: this.generateSessionId() // セッション識別用
+        };
+
+        // まずローカルに保存（バックアップとして）
+        this.localSystem.registerScore(userName, score, totalQuestions, timeSpent);
+
+        // オンラインAPIが設定されている場合のみオンライン処理を試行
+        if (this.apiUrl && this.apiUrl.trim() !== '') {
+            const onlineSuccess = await this.submitScoreOnline(scoreData);
+            
+            if (onlineSuccess) {
+                console.log('Score submitted online successfully');
+                // オンラインランキングを表示
+                await this.showOnlineRankings(scoreData);
+                return;
+            } else {
+                console.log('Online submission failed, using local ranking');
+            }
+        } else {
+            console.log('No online API configured, using local ranking');
+        }
+        
+        // ローカルランキングを表示（フォールバック）
+        // 既にregisterScoreで表示されているため、追加処理は不要
+    }
+
+    async showOnlineRankings(userScore) {
+        const onlineRankings = await this.getRankingsOnline();
+        
+        if (onlineRankings) {
+            // オンラインランキングを表示
+            this.displayRankings(onlineRankings, userScore, true);
+        } else {
+            // ローカルランキングにフォールバック
+            console.log('Failed to fetch online rankings, showing local rankings');
+        }
+    }
+
+    displayRankings(rankings, userScore, isOnline = false) {
+        // ランキング表示UI（オンライン/ローカル表示を区別）
+        const titlePrefix = isOnline ? '🌐 オンライン' : '💾 ローカル';
+        
+        const resultsContainer = document.getElementById('result-container');
+        if (!resultsContainer) return;
+
+        // 既存のランキング結果を削除
+        const existingRanking = resultsContainer.querySelector('.ranking-results');
+        if (existingRanking) {
+            existingRanking.remove();
+        }
+
+        const rankingInfo = document.createElement('div');
+        rankingInfo.className = 'ranking-results';
+        rankingInfo.innerHTML = `
+            <div class="ranking-achievement">
+                <h3>${titlePrefix} ランキング</h3>
+                <div class="ranks-grid">
+                    ${this.generatePeriodRanks(rankings, userScore)}
+                </div>
+                <button onclick="rankingSystem.showFullRanking()" class="view-ranking-btn">
+                    📊 詳細ランキングを見る
+                </button>
+                ${isOnline ? '<div class="online-status">✅ オンライン同期済み</div>' : '<div class="local-status">💾 ローカル保存</div>'}
+            </div>
+        `;
+        
+        const rewardElement = resultsContainer.querySelector('#reward');
+        if (rewardElement) {
+            rewardElement.after(rankingInfo);
+        } else {
+            resultsContainer.appendChild(rankingInfo);
+        }
+    }
+
+    generatePeriodRanks(rankings, userScore) {
+        // 簡易版の期間別順位計算
+        const periods = ['今日', '今週', '今月', '総合'];
+        const userRanks = periods.map(period => {
+            const rank = this.getUserRankInPeriod(rankings, userScore, period);
+            return `
+                <div class="rank-item">
+                    <div class="rank-period">${period}</div>
+                    <div class="rank-position">${rank || '-'}位</div>
+                </div>
+            `;
+        });
+        
+        return userRanks.join('');
+    }
+
+    getUserRankInPeriod(rankings, userScore, period) {
+        // 簡易実装（実際のオンラインランキングでは期間別フィルタリングが必要）
+        const userIndex = rankings.findIndex(entry => 
+            entry.name === userScore.name && 
+            entry.timestamp === userScore.timestamp
+        );
+        return userIndex >= 0 ? userIndex + 1 : null;
+    }
+
+    generateSessionId() {
+        return Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
+    }
+
+    // API URL設定
+    setApiUrl(url) {
+        this.apiUrl = url;
+        console.log('Online ranking API URL set:', url);
+    }
+
+    // オンライン機能の有効/無効状態を確認
+    isOnlineEnabled() {
+        return this.apiUrl && this.apiUrl.trim() !== '';
+    }
+}
+
 // グローバル変数として初期化
 let rankingSystem;
 
 // DOM読み込み完了時に初期化
 document.addEventListener('DOMContentLoaded', () => {
-    rankingSystem = new LocalRankingSystem();
+    // オンラインシステムを使用（APIが未設定の場合は自動的にローカルフォールバック）
+    rankingSystem = new OnlineRankingSystem();
+    
+    // デバッグ用：コンソールから API URL を設定可能
+    window.setRankingApiUrl = (url) => {
+        rankingSystem.setApiUrl(url);
+    };
 });
