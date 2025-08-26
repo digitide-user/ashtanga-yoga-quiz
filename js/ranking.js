@@ -397,7 +397,7 @@ class LocalRankingSystem {
 // オンラインランキングシステム
 class OnlineRankingSystem {
     constructor() {
-        this.apiUrl = ''; // Google Apps Script URLを後で設定
+        this.apiUrl = 'https://script.google.com/macros/s/AKfycbygmf89siVmBYneMeakC5xj09XvwEPp0KyZckrafbKYU_cReHHoooXAxH3JF-P0KsBb/exec'; // Google Apps Script URL
         this.fallbackToLocal = true; // オンライン失敗時はローカル版使用
         this.timeout = 10000; // 10秒タイムアウト
         this.localSystem = new LocalRankingSystem();
