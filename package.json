@@ -9,6 +9,9 @@
     "test": "echo 'No tests specified'",
     "qa:ranking": "node qa/check-ranking.mjs"
   },
+  "devDependencies": {
+    "puppeteer": "^22.7.0"
+  },
   "keywords": [
     "yoga",
     "ashtanga",
