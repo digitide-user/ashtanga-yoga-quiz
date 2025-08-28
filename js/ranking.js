@@ -1194,3 +1194,44 @@ document.addEventListener('DOMContentLoaded', () => {
         console.error('[RANK] init error', e);
     }
 });
+
+
+// QA self-test (diagnostics)
+(function(){
+  let qaRan = false;
+  function log(){
+    try { console.log('[RANK QA]', ...arguments); } catch(_){}
+  }
+  async function selfTest(){
+    if (qaRan) return; qaRan = true;
+    try {
+      log('config', {
+        strict: !!window.STRICT_ONLINE_RANKING,
+        enable: !!window.ENABLE_ONLINE_RANKING,
+        apiUrl: (window.RANKING_API_URL||'').replace(/.{10}$/,'**********'),
+        keyLen: (window.RANKING_SHARED_KEY||'').length
+      });
+      log('class', typeof window.OnlineRankingSystem);
+      log('instance', !!window.rankingSystem);
+      if (window.rankingSystem?.healthCheckPing){
+        try {
+          const ok = await window.rankingSystem.healthCheckPing(2000);
+          log('ping', ok ? 'OK' : 'FAIL');
+        } catch(e){ log('ping error', String(e)); }
+      } else { log('ping', 'SKIP (no method)'); }
+      if (window.rankingSystem?.getRankings){
+        try {
+          const rows = await window.rankingSystem.getRankings('allTime', 3);
+          log('getRankings count', Array.isArray(rows) ? rows.length : rows);
+        } catch(e){ log('getRankings error', String(e)); }
+      }
+      const btn = document.getElementById('viewRankingBtn');
+      log('button', !!btn, btn?.dataset.boundOpenRanking ? 'bound' : 'not-bound');
+    } catch(e){
+      log('selfTest error', e);
+    }
+  }
+  document.addEventListener('DOMContentLoaded', () => {
+    try { selfTest(); } catch(e){ try{ console.error('[RANK QA] fatal', e); }catch(_){} }
+  });
+})();
