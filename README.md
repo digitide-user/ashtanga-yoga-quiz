@@ -56,7 +56,49 @@ ashtanga-yoga-quiz/
 │   ├── Shiva_background.png
 │   └── [1-43].png
 └── README.md
+
+## 🧪 ランキング機能デバッグ
+
+オンラインランキング安定化のため、簡易デバッグページを追加しました。
+
+- ページ: `rank-debug.html`
+- 使い方:
+  - ブラウザで開く
+  - API URL 欄に Web アプリの `/exec` URL を入力（既定はコード内の API_BASE）
+  - [Ping] で疎通確認（`{ success: true }` などが返ればOK）
+  - [Dummy AddScore] で仮スコア送信（DebugUser, 7/10）
+  - [Get Rankings] で `allTime` の最新10件を取得
+
+オンライン接続に失敗した場合は自動でローカルランキングにフォールバックし、ランキングモーダルが開きます（コンソールに `[RANK]` ログを出力）。
+
+## 🌐 オンラインランキングの自動切替
+
+- 本番環境（`http(s)` かつ `localhost` 以外）では自動でオンラインランキングが有効になります。
+- ローカル開発（`localhost`）ではローカルランキング運用になります。
+- 起動時に軽量なヘルスチェック（`action=ping`、2秒タイムアウト）を行い、失敗した場合はそのセッション中はローカル運用に自動切替します（ログ: `[RANK] ONLINE DISABLED (ping fail)`）。
+
+### 手動で切り替えたい場合
+
+- ブラウザのDevToolsコンソールで以下を実行:
+  - オンライン有効化: `window.ENABLE_ONLINE_RANKING = true; location.reload();`
+  - ローカル固定: `window.ENABLE_ONLINE_RANKING = false; location.reload();`
+  - API URLの指定/変更: `rankingSystem.setApiUrl('https://script.google.com/macros/s/....../exec')`
 ```
+
+## 🔒 共有キー（軽量ハードニング）
+
+- このアプリはGAS側で共有キー（SHARED_KEY）をチェックする軽量な防波堤を設けています。厳密な認証ではありませんが、無秩序なアクセスの抑止を目的としています。
+- 変更手順:
+  1. GASの `Code.gs` 先頭付近の `const SHARED_KEY = '...'` を新しい32文字キーに更新。
+  2. 本リポジトリの `js/config.js` にある `var SHARED_KEY = '...'` も同じ値に更新。
+  3. デプロイ（GASの新バージョン公開 → 本番に反映）。
+- レート制限（5秒クールダウン）に当たった場合、クライアントは自動で1回だけリトライします（ログ: `[RANK] rate_limited → retry in 1500ms`）。
+
+## ⚙️ 設定の共通化（js/config.js）
+
+- すべてのページで `js/config.js` を先に読み込むことで、ランキング設定（`ENABLE_ONLINE_RANKING`, `RANKING_API_URL`）を共通化しています。
+  - 例: `<script src="js/config.js"></script>` を `js/ranking.js` より前に読み込む。
+- ページ単位でAPI URLを上書きしたい場合は、`<meta name="ranking-api-url" content=".../exec">` を記述するとその値が優先されます。
 
 ## 🔧 ローカル開発
 
@@ -103,3 +145,5 @@ MIT License - 詳細は[LICENSE](LICENSE)をご覧ください。
 **作成者**: [Your Name]  
 **連絡先**: [Your Email]  
 **ウェブサイト**: https://ashtanga-yoga-quiz.onrender.com
+
+※ 本プロジェクトは、現状ファビコン/manifest/検証ページを同梱していません（未対応）。

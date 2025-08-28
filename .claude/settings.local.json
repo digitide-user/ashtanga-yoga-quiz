@@ -10,7 +10,10 @@
       "Bash(git remote add:*)",
       "Bash(git branch:*)",
       "Bash(git push:*)",
-      "Bash(python3:*)"
+      "Bash(python3:*)",
+      "Bash(python:*)",
+      "Bash(node:*)",
+      "Bash(open:*)"
     ],
     "deny": [],
     "ask": []

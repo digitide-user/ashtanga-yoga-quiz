@@ -380,20 +380,43 @@ function showResult() {
     
     // ランキング機能を統合（ハイブリッドモード）
     setTimeout(async () => {
+        console.log('=== QUIZ COMPLETE - STARTING RANKING PROCESS ===');
+        console.log('rankingSystem exists:', typeof rankingSystem !== 'undefined');
+        console.log('rankingSystem:', rankingSystem);
+        
         if (typeof rankingSystem !== 'undefined' && rankingSystem) {
+            console.log('rankingSystem.addScoreHybrid exists:', typeof rankingSystem.addScoreHybrid === 'function');
+            console.log('rankingSystem.localSystem:', rankingSystem.localSystem);
+            console.log('current user:', rankingSystem.localSystem?.currentUser);
+            
             // OnlineRankingSystemのハイブリッドモードを使用
             if (rankingSystem.addScoreHybrid) {
-                await rankingSystem.addScoreHybrid(
-                    rankingSystem.localSystem?.currentUser?.name || 'ゲスト',
-                    score, 
-                    questions.length, 
-                    totalTimeSpent
-                );
+                console.log('Using hybrid mode...');
+                // ユーザー名を適切に取得
+                const userName = rankingSystem.localSystem?.currentUser?.name || null;
+                console.log('userName for ranking:', userName);
+                
+                if (!userName) {
+                    console.log('No user name found, triggering name prompt through addScore...');
+                    rankingSystem.localSystem.addScore(score, questions.length, totalTimeSpent);
+                } else {
+                    console.log('User name found, using hybrid mode...');
+                    await rankingSystem.addScoreHybrid(
+                        userName,
+                        score, 
+                        questions.length, 
+                        totalTimeSpent
+                    );
+                }
             } else {
                 // フォールバック：LocalRankingSystemの場合
+                console.log('Falling back to local ranking system...');
                 rankingSystem.addScore(score, questions.length, totalTimeSpent);
             }
+        } else {
+            console.error('rankingSystem is not available!');
         }
+        console.log('=== RANKING PROCESS COMPLETE ===');
     }, 1500);
 }
 

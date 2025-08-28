@@ -655,3 +655,76 @@ h1 .small-title {
         align-self: flex-start;
     }
 }
+
+/* ローディング・エラー状態のスタイル */
+.loading-state, .error-message {
+    margin: 1rem 0;
+    padding: 1rem;
+    border-radius: 0.8rem;
+    text-align: center;
+    animation: fadeIn 0.3s ease-in;
+}
+
+.loading-state {
+    background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+    border: 2px solid #3498db;
+}
+
+.error-message {
+    background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+    border: 2px solid #f39c12;
+}
+
+.loading-content, .error-content {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.8rem;
+    color: white;
+}
+
+.loading-spinner {
+    font-size: 1.5rem;
+    animation: rotate 1s linear infinite;
+}
+
+.error-icon {
+    font-size: 1.5rem;
+}
+
+.loading-message, .error-text {
+    font-size: 1rem;
+    font-weight: 500;
+}
+
+.online-badge {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    font-size: 0.9rem;
+    opacity: 0.7;
+}
+
+/* アニメーション */
+@keyframes rotate {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* レスポンシブ対応 */
+@media (max-width: 768px) {
+    .loading-content, .error-content {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .loading-message, .error-text {
+        font-size: 0.9rem;
+    }
+}
+}

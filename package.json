@@ -29,5 +29,6 @@
   "homepage": "https://ashtanga-yoga-quiz.onrender.com",
   "engines": {
     "node": ">=14.0.0"
-  }
+  },
+  "devDependencies": {}
 }
