@@ -483,11 +483,12 @@ class OnlineRankingSystem {
     }
 
     // 軽量ヘルスチェック（ping）。失敗時はオンライン無効化
-    async healthCheckPing() {
+    async healthCheckPing(timeoutMs) {
         try {
             if (!this.isOnlineEnabled()) return false;
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 2000);
+            const ms = typeof timeoutMs == "number" ? timeoutMs : 2000;
+            const timeoutId = setTimeout(() => controller.abort(), ms);
             const url = `${this.apiUrl}?action=ping&k=${encodeURIComponent(window.RANKING_SHARED_KEY || '')}`;
             const res = await fetch(url, { signal: controller.signal });
             clearTimeout(timeoutId);

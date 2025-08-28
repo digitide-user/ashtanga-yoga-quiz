@@ -6,7 +6,8 @@
   "scripts": {
     "start": "echo 'Static site - no build required'",
     "dev": "python -m http.server 8000",
-    "test": "echo 'No tests specified'"
+    "test": "echo 'No tests specified'",
+    "qa:ranking": "node qa/check-ranking.mjs"
   },
   "keywords": [
     "yoga",
