@@ -28,8 +28,10 @@
     
     
     <link rel="stylesheet" href="css/style.css">
-    <!-- ランキング設定（全ページ共通） -->
-    <script src="js/config.js"></script>
+    <!-- スクリプトは読込順を厳密化（defer） -->
+    <script defer src="js/config.js"></script>
+    <script defer src="js/ranking.js"></script>
+    <script defer src="js/quiz.js"></script>
 </head>
 <body>
     <div id="quiz-container">
@@ -47,8 +49,7 @@
         <p id="reward"></p>
         <button id="restart-btn">もう一度挑戦する</button>
         <button id="share-instagram-btn">Instagramストーリーズでシェア</button>
+        <button id="viewRankingBtn" class="btn btn-secondary">詳細ランキングを見る</button>
     </div>
-    <script src="js/ranking.js"></script>
-    <script src="js/quiz.js"></script>
 </body>
 </html>

@@ -1,3 +1,8 @@
+// セントリー（読み込み確認）
+(function(){
+    try { console.log('[RANK] ranking.js loaded'); } catch (_) {}
+})();
+
 // ランキングAPI ベースURL（末尾 /exec）を一元定義
 // window.RANKING_API_URL が優先、なければ API_BASE を使用
 const API_BASE = 'https://script.google.com/macros/s/AKfycbx3ecFodPRt3BWmslQEULFlJJYJ4Dh1FIZczKB8m6IxUpUjkLObnjPoS2fB-ZJ27oQHew/exec';
@@ -803,6 +808,25 @@ class OnlineRankingSystem {
     }
 
     async showOnlineRankings(userScore) {
+        // Overload: allow (period:string, limit:number)
+        if (typeof userScore === 'string') {
+            const period = userScore || 'allTime';
+            const lim = 50;
+            this.showLoadingState('オンラインランキングを取得中...');
+            const onlineRankings = await this.getRankings(period, lim);
+            this.hideLoadingState();
+            if (onlineRankings && onlineRankings.length > 0) {
+                this.showOnlineRankingModal(onlineRankings);
+                console.log(`[RANK] OPEN rankings modal (${period}, limit=${lim})`);
+            } else {
+                if (window.STRICT_ONLINE_RANKING) {
+                    this.showBlockingError('ランキングサーバーに接続できません。［再読み込み］');
+                } else {
+                    this.showErrorMessage('オンラインランキングデータがありません。');
+                }
+            }
+            return;
+        }
         this.showLoadingState('オンラインランキングを取得中...');
         
         const onlineRankings = await this.getRankings('allTime', 50);
@@ -1117,13 +1141,56 @@ let rankingSystem;
 
 // DOM読み込み完了時に初期化
 document.addEventListener('DOMContentLoaded', () => {
-    // オンラインシステムを使用（APIが未設定の場合は自動的にローカルフォールバック）
-    rankingSystem = new OnlineRankingSystem();
-    // ヘルスチェック（有効時のみ2秒タイムアウトで1回）
-    rankingSystem.healthCheckPing();
-
-    // デバッグ用：コンソールから API URL を設定可能
-    window.setRankingApiUrl = (url) => {
-        rankingSystem.setApiUrl(url);
-    };
+    try {
+        window.rankingSystem ??= new OnlineRankingSystem({
+            apiUrl: window.RANKING_API_URL || '',
+            sharedKey: window.RANKING_SHARED_KEY || '',
+            strict: !!window.STRICT_ONLINE_RANKING,
+        });
+        rankingSystem = window.rankingSystem;
+        if (window.STRICT_ONLINE_RANKING) {
+            console.log('[RANK] ONLINE ONLY mode enabled');
+        }
+        if (typeof window.rankingSystem.healthCheckPing === 'function') {
+            window.rankingSystem.healthCheckPing(2000).then(ok => {
+                if (!ok && window.STRICT_ONLINE_RANKING && typeof window.rankingSystem.showBlockingError === 'function') {
+                    console.warn('[RANK] PING fail → BLOCK');
+                    window.rankingSystem.showBlockingError('オンライン接続が必須です。［再読み込み］');
+                }
+            }).catch(err => console.error('[RANK] ping error', err));
+        }
+        const bindOpen = () => {
+            const el = document.getElementById('viewRankingBtn');
+            if (!el) return;
+            if (!el.dataset.boundOpenRanking) {
+                el.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    try {
+                        if (window.rankingSystem && typeof window.rankingSystem.showOnlineRankings === 'function') {
+                            window.rankingSystem.showOnlineRankings('allTime', 50);
+                            console.log('[RANK] OPEN rankings (allTime, limit=50)');
+                        } else {
+                            console.warn('[RANK] rankingSystem not ready');
+                        }
+                    } catch (err) {
+                        console.error('[RANK] open rankings error', err);
+                    }
+                });
+                el.dataset.boundOpenRanking = '1';
+            }
+        };
+        bindOpen();
+        document.body.addEventListener('click', (e) => {
+            const t = e.target.closest('#viewRankingBtn,[data-action="open-ranking"]');
+            if (!t) return;
+            e.preventDefault();
+            if (window.rankingSystem?.showOnlineRankings) {
+                window.rankingSystem.showOnlineRankings('allTime', 50);
+                console.log('[RANK] OPEN rankings (delegated)');
+            }
+        }, { passive: false });
+        window.setRankingApiUrl = (url) => { rankingSystem.setApiUrl(url); };
+    } catch (e) {
+        console.error('[RANK] init error', e);
+    }
 });
