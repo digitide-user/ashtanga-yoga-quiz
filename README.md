@@ -61,7 +61,6 @@ ashtanga-yoga-quiz/
 
 オンラインランキング安定化のため、簡易デバッグページを追加しました。
 
-- ページ: `rank-debug.html`
 - 使い方:
   - ブラウザで開く
   - API URL 欄に Web アプリの `/exec` URL を入力（既定はコード内の API_BASE）
