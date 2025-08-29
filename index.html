@@ -6,17 +6,30 @@
   <title>アシュタンガ ヨガ アーサナクイズ</title>
   <link rel="stylesheet" href="css/styles.css" />
 
-  <!-- CONFIG → Supabase → ranking → quiz の順で defer 読み込み -->
-  <script defer src="js/config.js"></script>
-  <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script defer src="js/ranking.js"></script>
-  <script defer src="js/quiz.js"></script>
+  <!-- ★ Inline config: FORCE ON -->
+  <script>
+    window.ENABLE_ONLINE_RANKING = true;
+    window.STRICT_ONLINE_RANKING = true;
+    window.SUPABASE_URL = "https://utpcwlxxmgzkcrwfbiav.supabase.co";
+    window.SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV0cGN3bHh4bWd6a2Nyd2ZiaWF2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY0MTYzNTgsImV4cCI6MjA3MTk5MjM1OH0.lCGFzl0pExl3uqsSh4h0jrPsmtowQ9618q4lZyxX4o4";
+    console.log('[RANK CFG] inlined', {
+      strict: window.STRICT_ONLINE_RANKING,
+      enable: window.ENABLE_ONLINE_RANKING,
+      url: (window.SUPABASE_URL||'').slice(0,32)+'…',
+      keyLen: (window.SUPABASE_ANON_KEY||'').length
+    });
+  </script>
+
+  <!-- 読込順を保証（キャッシュバスター付き） -->
+  <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2?v=20250829-1"></script>
+  <script defer src="js/ranking.js?v=20250829-1"></script>
+  <script defer src="js/quiz.js?v=20250829-1"></script>
 </head>
 <body>
   <div id="app">
-    <!-- 既存のクイズUI … -->
+    <!-- 既存のクイズUI -->
 
-    <!-- 結果表示エリアの中（または直下）に “詳細ランキングを見る” ボタンを必ず置く -->
+    <!-- 結果画面側に必ずこのボタンが存在するようにしておく（重複OK） -->
     <button id="viewRankingBtn" data-action="open-ranking" class="btn btn-secondary">
       詳細ランキングを見る
     </button>
