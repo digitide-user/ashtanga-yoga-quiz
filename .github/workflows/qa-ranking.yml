@@ -21,59 +21,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 18
-
-      - name: Show repo
-        run: |
-          pwd && ls -la
-          echo "package.json exists? $( [ -f package.json ] && echo yes || echo no )"
-
-      - name: Install deps (ci or install)
-        run: |
-          if [ -f package-lock.json ]; then npm ci; else npm install; fi
-
-      - name: Install Puppeteer (force)
-        run: npm install -D puppeteer
-       
-      - name: Sanity: show puppeteer version
-        run: node -e "console.log('puppeteer=', require('puppeteer/package.json').version)"
-
-      - name: Run headless QA
-        env:
-          BASE_URL: ${{ inputs.base_url || 'https://ashtanga-yoga-quiz.onrender.com' }}
-        run: |
-          node -v
-          node qa/check-ranking.mjs
-name: QA - Ranking (Prod)
-
-on:
-  workflow_dispatch:
-    inputs:
-      base_url:
-        description: 'Base URL'
-        required: false
-        default: https://ashtanga-yoga-quiz.onrender.com
-  push:
-    branches: [ main ]
-
-jobs:
-  qa:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 18
           cache: 'npm'
-
-      - name: Show repo (sanity)
-        run: |
-          node -v && npm -v
-          ls -la
-          echo "package.json present? $( [ -f package.json ] && echo yes || echo no )"
-          echo "package-lock present? $( [ -f package-lock.json ] && echo yes || echo no )"
 
       - name: Install deps (ci or install)
         run: |

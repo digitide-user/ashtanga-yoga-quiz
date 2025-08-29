@@ -1,45 +1,61 @@
 import puppeteer from 'puppeteer';
 
 const BASE = process.env.BASE_URL || 'https://ashtanga-yoga-quiz.onrender.com';
+const consoleLogs = [];
+const netLogs = [];
 
 (async () => {
-  const browser = await puppeteer.launch({ headless: 'new', args: ['--no-sandbox','--disable-setuid-sandbox'] });
+  const browser = await puppeteer.launch({
+    headless: 'new',
+    args: ['--no-sandbox', '--disable-setuid-sandbox']
+  });
   const page = await browser.newPage();
-  const rankLogs = [];
-  page.on('console', (msg) => {
+
+  // Collect [RANK] logs
+  page.on('console', msg => {
     const text = msg.text();
-    if (text.includes('[RANK')) rankLogs.push(text);
+    if (/\[RANK/.test(text)) consoleLogs.push(text);
   });
-  const reqs = [];
-  page.on('requestfinished', async (req) => {
+
+  // Collect Supabase REST calls
+  page.on('response', res => {
     try {
-      const url = req.url();
-      if (url.includes('action=getRankings')) {
-        const res = req.response();
-        reqs.push({ url, status: res ? res.status() : -1 });
+      const url = res.url();
+      const method = res.request().method();
+      const status = res.status();
+      if (/supabase\.co\/rest\/v1\/scores/.test(url)) {
+        netLogs.push(`${status} ${method} ${url}`);
       }
-    } catch {}
+    } catch (_) {}
   });
 
-  await page.goto(BASE, { waitUntil: 'domcontentloaded', timeout: 30000 });
+  // Go to site
+  await page.goto(BASE, { waitUntil: 'networkidle2', timeout: 60000 }).catch(()=>{});
 
-  // クリック試行
-  try {
-    const btn = await page.$('#viewRankingBtn');
-    if (btn) {
-      await btn.click();
-    } else {
-      const alt = await page.$('[data-action="open-ranking"]');
-      if (alt) await alt.click();
-    }
-    await page.waitForTimeout(1500);
-  } catch {}
+  // Wait for supabase globals (best-effort)
+  await page.waitForFunction(
+    () => window.supabase && window.SUPABASE_URL && window.SUPABASE_ANON_KEY,
+    { timeout: 15000 }
+  ).catch(()=>{});
 
-  // ダンプ
+  // Open ranking UI
+  await page.waitForTimeout(1000);
+  await page.evaluate(() => {
+    const btn = document.querySelector('#viewRankingBtn,[data-action="open-ranking"]');
+    if (btn) btn.click();
+  });
+
+  // Allow network to happen
+  await page.waitForTimeout(5000);
+
+  // Emit required blocks
   console.log('--- [RANK LOGS] ---');
-  for (const l of rankLogs) console.log(l);
+  consoleLogs.forEach(l => console.log(l));
   console.log('--- [GET RANKINGS] ---');
-  for (const r of reqs) console.log(r.status, r.url);
+  netLogs.forEach(l => console.log(l));
 
   await browser.close();
-})().catch((e) => { console.error('[QA] error', e); process.exit(1); });
+
+  // Gate: require at least one 200 to /rest/v1/scores
+  if (!netLogs.some(l => /200/.test(l))) process.exitCode = 1;
+})();
