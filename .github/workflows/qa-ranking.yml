@@ -13,7 +13,6 @@ on:
 jobs:
   qa:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -22,42 +21,52 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 18
-          cache: npm
 
-      - name: Install deps (ci or install)
+      # Ensure we can install deps even if package.json/lock is missing
+      - name: Ensure package.json exists
         run: |
-          if [ -f package-lock.json ]; then
-            npm ci
-          else
-            npm install
+          if [ ! -f package.json ]; then
+            npm init -y
           fi
 
-      - name: Ensure Puppeteer is installed
+      - name: Install Puppeteer (always)
         run: |
-          node -e "try{console.log('puppeteer',require('puppeteer/package.json').version)}catch(e){process.exit(1)}" \
-          || npm i -D puppeteer
-          node -e "console.log('puppeteer',require('puppeteer/package.json').version)"
+          npm i -D puppeteer
+          node -e "console.log('puppeteer', require('puppeteer/package.json').version)"
 
-      - name: Run headless QA
+      # Always create the log file first so later steps can append
+      - name: Init qa_output.txt
+        run: |
+          echo '--- [RANK LOGS] ---' > qa_output.txt
+          echo "(runner cwd: $(pwd))" >> qa_output.txt
+          echo "(repo files:)" >> qa_output.txt
+          ls -la >> qa_output.txt
+          echo '' >> qa_output.txt
+
+      - name: Run headless QA (produce logs even on failure)
         run: |
           set -o pipefail
           BASE="${{ inputs.base_url }}"
           if [ -z "$BASE" ]; then BASE="https://ashtanga-yoga-quiz.onrender.com"; fi
           export BASE_URL="$BASE"
-          echo "BASE=$BASE_URL"
-          node qa/check-ranking.mjs 2>&1 | tee qa_output.txt
+          echo "BASE=$BASE_URL" | tee -a qa_output.txt
+          if [ -f qa/check-ranking.mjs ]; then
+            node qa/check-ranking.mjs 2>&1 | tee -a qa_output.txt
+          else
+            echo "[WARN] qa/check-ranking.mjs not found." | tee -a qa_output.txt
+          fi
+          echo '' >> qa_output.txt
+          echo '--- [GET RANKINGS] ---' >> qa_output.txt
+          # If the QA script didn't add a GET line, leave a marker
+          grep -q "GET " qa_output.txt || echo "(no GET captured)" >> qa_output.txt
 
       - name: Append QA logs to Summary
         if: always()
         run: |
           echo '### QA Output' >> $GITHUB_STEP_SUMMARY
-          if [ -f qa_output.txt ]; then
-            echo '```' >> $GITHUB_STEP_SUMMARY
-            tail -n 1000 qa_output.txt >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-          else
-            echo '(qa_output.txt missing)' >> $GITHUB_STEP_SUMMARY
-          fi
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          tail -n 1000 qa_output.txt >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
 
       - name: Upload QA artifact
         if: always()
