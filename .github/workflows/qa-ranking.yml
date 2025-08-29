@@ -28,6 +28,9 @@ jobs:
         run: |
           if [ -f package-lock.json ]; then npm ci; else npm install; fi
 
+      - name: Install Puppeteer
+        run: npm install -D puppeteer
+
       - name: Run headless QA
         run: |
           export BASE="$BASE_URL"
@@ -57,4 +60,3 @@ jobs:
           # 最低1回 200 を確認（rate_limited後の成功でも可）
           grep -Eq "GET RANKINGS].* 200 " qa_output.txt
           echo "All checks passed."
-

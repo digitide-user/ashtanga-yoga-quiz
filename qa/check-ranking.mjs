@@ -3,7 +3,7 @@ import puppeteer from 'puppeteer';
 const BASE = process.env.BASE_URL || 'https://ashtanga-yoga-quiz.onrender.com';
 
 (async () => {
-  const browser = await puppeteer.launch({ headless: 'new', args: ['--no-sandbox'] });
+  const browser = await puppeteer.launch({ headless: 'new', args: ['--no-sandbox','--disable-setuid-sandbox'] });
   const page = await browser.newPage();
   const rankLogs = [];
   page.on('console', (msg) => {
