@@ -1,55 +1,25 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>アシュタンガヨガのアーサナ名テスト</title>
-    
-    <!-- SEO最適化 -->
-    <meta name="description" content="アシュタンガヨガのアーサナ名を当てる学習用クイズ。58種類のポーズから出題される4択クイズでポーズ名を覚えよう！">
-    <meta name="keywords" content="アシュタンガヨガ,ヨガ,アーサナ,クイズ,学習,ポーズ,サンスクリット">
-    <meta name="author" content="Your Name">
-    <meta name="robots" content="index, follow">
-    
-    <!-- OGP設定（SNSシェア用） -->
-    <meta property="og:title" content="アシュタンガヨガ アーサナクイズ">
-    <meta property="og:description" content="アシュタンガヨガのアーサナ名を覚えよう！58種類のポーズから出題される学習クイズ">
-    <meta property="og:image" content="https://ashtanga-yoga-quiz.onrender.com/images/og-image.png">
-    <meta property="og:url" content="https://ashtanga-yoga-quiz.onrender.com">
-    <meta property="og:type" content="website">
-    <meta property="og:site_name" content="アシュタンガヨガ アーサナクイズ">
-    
-    <!-- Twitter Card -->
-    <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="アシュタンガヨガ アーサナクイズ">
-    <meta name="twitter:description" content="アシュタンガヨガのアーサナ名を覚えよう！">
-    <meta name="twitter:image" content="https://ashtanga-yoga-quiz.onrender.com/images/og-image.png">
-    
-    
-    
-    <link rel="stylesheet" href="css/style.css">
-    <!-- スクリプトは読込順を厳密化（defer） -->
-    <script defer src="js/config.js"></script>
-    <script defer src=\"https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2\"></script>\n    <script defer src=\"js/ranking.js\"></script>
-    <script defer src="js/quiz.js"></script>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>アシュタンガ ヨガ アーサナクイズ</title>
+  <link rel="stylesheet" href="css/styles.css" />
+
+  <!-- CONFIG → Supabase → ranking → quiz の順で defer 読み込み -->
+  <script defer src="js/config.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script defer src="js/ranking.js"></script>
+  <script defer src="js/quiz.js"></script>
 </head>
 <body>
-    <div id="quiz-container">
-        <h1><span class="small-title">目指せアシュタンガヨガマスター！</span><br>アーサナ名を当ててね♪</h1>
-        <div id="image-container">
-            <!-- ここにアーサナの画像が表示されます -->
-        </div>
-        <div id="options-container">
-            <!-- ここに選択肢が表示されます -->
-        </div>
-    </div>
-    <div id="result-container" class="hidden">
-        <h2>結果</h2>
-        <p id="score"></p>
-        <p id="reward"></p>
-        <button id="restart-btn">もう一度挑戦する</button>
-        <button id="share-instagram-btn">Instagramストーリーズでシェア</button>
-        <button id="viewRankingBtn" data-action="open-ranking" class="btn btn-secondary">詳細ランキングを見る</button>
-    </div>
+  <div id="app">
+    <!-- 既存のクイズUI … -->
+
+    <!-- 結果表示エリアの中（または直下）に “詳細ランキングを見る” ボタンを必ず置く -->
+    <button id="viewRankingBtn" data-action="open-ranking" class="btn btn-secondary">
+      詳細ランキングを見る
+    </button>
+  </div>
 </body>
 </html>
