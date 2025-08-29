@@ -4,11 +4,14 @@ on:
   workflow_dispatch:
     inputs:
       base_url:
-        description: 'Base URL'
+        description: 'Base URL to test'
         required: false
         default: https://ashtanga-yoga-quiz.onrender.com
   push:
     branches: [ main ]
+
+permissions:
+  contents: write
 
 jobs:
   qa:
@@ -20,46 +23,55 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 20
           cache: 'npm'
 
       - name: Install deps (ci or install)
         run: |
-          if [ -f package-lock.json ]; then npm ci; else npm install; fi
+          npm ci || npm install
 
       - name: Ensure Puppeteer is installed
         run: |
-          npm ls puppeteer || npm install -D puppeteer
-          node -e "console.log('puppeteer=', require('puppeteer/package.json').version)"
-          node -e "console.log('resolve=', require.resolve('puppeteer'))"
+          npm ls puppeteer || npm i -D puppeteer@22
 
       - name: Run headless QA
         env:
-          BASE_URL: ${{ github.event.inputs.base_url || 'https://ashtanga-yoga-quiz.onrender.com' }}
-        run: node qa/check-ranking.mjs | tee qa_output.txt
+          BASE_URL: ${{ inputs.base_url || 'https://ashtanga-yoga-quiz.onrender.com' }}
+        run: |
+          set -e
+          node qa/check-ranking.mjs | tee qa_output.txt
 
       - name: Append QA logs to Summary
         if: always()
         run: |
-          echo "## QA Output" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          cat qa_output.txt >> $GITHUB_STEP_SUMMARY
+          echo '## QA Output' >> $GITHUB_STEP_SUMMARY
+          echo '```text' >> $GITHUB_STEP_SUMMARY
+          if [ -f qa_output.txt ]; then cat qa_output.txt >> $GITHUB_STEP_SUMMARY; else echo '(qa_output.txt missing)' >> $GITHUB_STEP_SUMMARY; fi
+          echo '```' >> $GITHUB_STEP_SUMMARY
 
       - name: Publish QA logs into repo (qa-reports/)
         if: always()
         run: |
           mkdir -p qa-reports
-          cp qa_output.txt "qa-reports/qa_${{ github.run_id }}.txt"
+          if [ -f qa_output.txt ]; then
+            cp qa_output.txt "qa-reports/qa_${{ github.run_id }}.txt"
+          else
+            echo "(qa_output.txt missing)" > "qa-reports/qa_${{ github.run_id }}.txt"
+          fi
 
       - name: Commit QA log file
         if: always()
         uses: EndBug/add-and-commit@v9
         with:
-          add: "qa-reports/qa_${{ github.run_id }}.txt"
-          message: "chore(qa): add QA log ${{ github.run_id }}"
+          add: 'qa-reports/qa_${{ github.run_id }}.txt'
+          message: 'chore(qa): add run ${{ github.run_id }}'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload QA artifact
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: qa_output
           path: qa_output.txt
+          if-no-files-found: warn

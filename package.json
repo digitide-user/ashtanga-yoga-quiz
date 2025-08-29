@@ -9,9 +9,6 @@
     "test": "echo 'No tests specified'",
     "qa:ranking": "node qa/check-ranking.mjs"
   },
-  "devDependencies": {
-    "puppeteer": "^22.15.0"
-  },
   "keywords": [
     "yoga",
     "ashtanga",
@@ -34,5 +31,7 @@
   "engines": {
     "node": ">=14.0.0"
   },
-  "devDependencies": {}
+  "devDependencies": {
+    "puppeteer": "^22.15.0"
+  }
 }
