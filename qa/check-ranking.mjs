@@ -31,8 +31,10 @@ const sleep = (ms) => new Promise(r=>setTimeout(r, ms));
 
   let forced = false;
   try {
-    console.log(`[QA] opening ${BASE}`);
-    await page.goto(BASE, { waitUntil: "networkidle0", timeout: 60000 });
+    const base = BASE.replace(/\/$/, '');
+    const url = `${base}/?qa_bust=${Date.now()}`;
+    console.log(`[QA] opening ${url}`);
+    await page.goto(url, { waitUntil: "networkidle0", timeout: 60000 });
 
     await page.evaluate(() => {
       const info = {
