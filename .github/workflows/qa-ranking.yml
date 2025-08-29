@@ -4,17 +4,15 @@ on:
   workflow_dispatch:
     inputs:
       base_url:
-        description: "Base URL to test"
-        required: true
-        default: "https://ashtanga-yoga-quiz.onrender.com"
+        description: 'Base URL'
+        required: false
+        default: https://ashtanga-yoga-quiz.onrender.com
   push:
-    branches: [ "main" ]
+    branches: [ main ]
 
 jobs:
   qa:
     runs-on: ubuntu-latest
-    env:
-      BASE_URL: ${{ inputs.base_url || 'https://ashtanga-yoga-quiz.onrender.com' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -22,41 +20,26 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: "18"
+          node-version: 18
 
-      - name: Install deps
+      - name: Show repo
+        run: |
+          pwd && ls -la
+          echo "package.json exists? $( [ -f package.json ] && echo yes || echo no )"
+
+      - name: Install deps (ci or install)
         run: |
           if [ -f package-lock.json ]; then npm ci; else npm install; fi
 
-      - name: Install Puppeteer
+      - name: Install Puppeteer (force)
         run: npm install -D puppeteer
+       
+      - name: Sanity: show puppeteer version
+        run: node -e "console.log('puppeteer=', require('puppeteer/package.json').version)"
 
       - name: Run headless QA
+        env:
+          BASE_URL: ${{ inputs.base_url || 'https://ashtanga-yoga-quiz.onrender.com' }}
         run: |
-          export BASE="$BASE_URL"
-          echo "BASE=$BASE"
-          set -o pipefail
-          npm run qa:ranking | tee qa_output.txt
-
-      - name: Summarize logs
-        run: |
-          echo '### QA Logs' >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          cat qa_output.txt >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: qa-ranking-logs
-          path: qa_output.txt
-
-      - name: Gate - PASS/FAIL
-        run: |
-          set -e
-          grep -q "\[RANK\] ranking.js loaded" qa_output.txt
-          grep -q "ONLINE ONLY mode enabled" qa_output.txt
-          grep -q "\[RANK QA\] ping OK" qa_output.txt
-          # 最低1回 200 を確認（rate_limited後の成功でも可）
-          grep -Eq "GET RANKINGS].* 200 " qa_output.txt
-          echo "All checks passed."
+          node -v
+          node qa/check-ranking.mjs
