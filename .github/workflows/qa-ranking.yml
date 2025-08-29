@@ -38,6 +38,26 @@ jobs:
           BASE_URL: ${{ github.event.inputs.base_url || 'https://ashtanga-yoga-quiz.onrender.com' }}
         run: node qa/check-ranking.mjs | tee qa_output.txt
 
+      - name: Append QA logs to Summary
+        if: always()
+        run: |
+          echo "## QA Output" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          cat qa_output.txt >> $GITHUB_STEP_SUMMARY
+
+      - name: Publish QA logs into repo (qa-reports/)
+        if: always()
+        run: |
+          mkdir -p qa-reports
+          cp qa_output.txt "qa-reports/qa_${{ github.run_id }}.txt"
+
+      - name: Commit QA log file
+        if: always()
+        uses: EndBug/add-and-commit@v9
+        with:
+          add: "qa-reports/qa_${{ github.run_id }}.txt"
+          message: "chore(qa): add QA log ${{ github.run_id }}"
+
       - name: Upload QA artifact
         uses: actions/upload-artifact@v4
         with:
