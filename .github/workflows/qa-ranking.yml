@@ -43,3 +43,55 @@ jobs:
         run: |
           node -v
           node qa/check-ranking.mjs
+name: QA - Ranking (Prod)
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: 'Base URL'
+        required: false
+        default: https://ashtanga-yoga-quiz.onrender.com
+  push:
+    branches: [ main ]
+
+jobs:
+  qa:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: 'npm'
+
+      - name: Show repo (sanity)
+        run: |
+          node -v && npm -v
+          ls -la
+          echo "package.json present? $( [ -f package.json ] && echo yes || echo no )"
+          echo "package-lock present? $( [ -f package-lock.json ] && echo yes || echo no )"
+
+      - name: Install deps (ci or install)
+        run: |
+          if [ -f package-lock.json ]; then npm ci; else npm install; fi
+
+      - name: Ensure Puppeteer is installed
+        run: |
+          npm ls puppeteer || npm install -D puppeteer
+          node -e "console.log('puppeteer=', require('puppeteer/package.json').version)"
+          node -e "console.log('resolve=', require.resolve('puppeteer'))"
+
+      - name: Run headless QA
+        env:
+          BASE_URL: ${{ github.event.inputs.base_url || 'https://ashtanga-yoga-quiz.onrender.com' }}
+        run: node qa/check-ranking.mjs | tee qa_output.txt
+
+      - name: Upload QA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa_output
+          path: qa_output.txt
