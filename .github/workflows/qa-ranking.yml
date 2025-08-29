@@ -4,75 +4,60 @@ on:
   workflow_dispatch:
     inputs:
       base_url:
-        description: 'Base URL to test'
+        description: "Base URL of deployed site"
         required: false
-        default: https://ashtanga-yoga-quiz.onrender.com
+        default: "https://ashtanga-yoga-quiz.onrender.com"
   push:
     branches: [ main ]
-
-permissions:
-  contents: write
 
 jobs:
   qa:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Init placeholder
-        run: echo "(init) created by workflow" > qa_output.txt
-
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
-          cache: 'npm'
+          node-version: 18
+          cache: npm
 
       - name: Install deps (ci or install)
         run: |
-          npm ci || npm install
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm install
+          fi
 
       - name: Ensure Puppeteer is installed
         run: |
-          npm ls puppeteer || npm i -D puppeteer@22
+          node -e "try{console.log('puppeteer',require('puppeteer/package.json').version)}catch(e){process.exit(1)}" \
+          || npm i -D puppeteer
+          node -e "console.log('puppeteer',require('puppeteer/package.json').version)"
 
       - name: Run headless QA
-        env:
-          BASE_URL: ${{ inputs.base_url || 'https://ashtanga-yoga-quiz.onrender.com' }}
-        continue-on-error: true
         run: |
+          set -o pipefail
+          BASE="${{ inputs.base_url }}"
+          if [ -z "$BASE" ]; then BASE="https://ashtanga-yoga-quiz.onrender.com"; fi
+          export BASE_URL="$BASE"
+          echo "BASE=$BASE_URL"
           node qa/check-ranking.mjs 2>&1 | tee qa_output.txt
 
       - name: Append QA logs to Summary
         if: always()
         run: |
-          {
-            echo '### QA Output'
-            echo
-            echo '```text'
-            cat qa_output.txt || echo '(qa_output.txt missing)'
-            echo '```'
-          } >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Publish QA logs into repo (qa-reports/)
-        if: always()
-        run: |
-          mkdir -p qa-reports
+          echo '### QA Output' >> $GITHUB_STEP_SUMMARY
           if [ -f qa_output.txt ]; then
-            cp qa_output.txt "qa-reports/qa_${{ github.run_id }}.txt"
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            tail -n 1000 qa_output.txt >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
           else
-            echo "(qa_output.txt missing)" > "qa-reports/qa_${{ github.run_id }}.txt"
+            echo '(qa_output.txt missing)' >> $GITHUB_STEP_SUMMARY
           fi
-
-      - name: Commit QA log file
-        if: always()
-        uses: EndBug/add-and-commit@v9
-        with:
-          add: 'qa-reports/qa_${{ github.run_id }}.txt'
-          message: 'chore(qa): add run ${{ github.run_id }}'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload QA artifact
         if: always()
@@ -81,79 +66,3 @@ jobs:
           name: qa_output
           path: qa_output.txt
           if-no-files-found: warn
-name: QA - Ranking (Prod)
-
-on:
-  workflow_dispatch:
-    inputs:
-      base_url:
-        description: 'Base URL of deployed site'
-        required: false
-        default: https://ashtanga-yoga-quiz.onrender.com
-  push:
-    branches: [ main ]
-
-jobs:
-  qa:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Init placeholder
-        run: echo "(init) created by workflow" > qa_output.txt
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
-          cache: 'npm'
-
-      - name: Install deps (ensure puppeteer present)
-        run: |
-          set -eux
-          if [ -f package-lock.json ]; then npm ci; else npm install; fi
-          node -e "try{require('puppeteer');console.log('puppeteer present')}catch(e){process.exit(1)}" || npm i -D puppeteer@22
-
-      - name: Print versions
-        run: |
-          node -v
-          npm -v
-          node -e "console.log('puppeteer', require('puppeteer/package.json').version)"
-
-      - name: Run headless QA (always write qa_output.txt)
-        env:
-          BASE_URL: ${{ inputs.base_url || 'https://ashtanga-yoga-quiz.onrender.com' }}
-        continue-on-error: true
-        run: |
-          node qa/check-ranking.mjs 2>&1 | tee qa_output.txt
-
-      - name: Append QA logs to Summary
-        if: always()
-        run: |
-          {
-            echo '### QA Output'
-            echo
-            echo '```text'
-            cat qa_output.txt || echo '(qa_output.txt missing)'
-            echo '```'
-          } >> "$GITHUB_STEP_SUMMARY"
-
-      # Gate step removed to ensure Summary always shows QA Output
-
-      - name: Publish QA logs into repo (qa-reports/)
-        if: always()
-        run: |
-          mkdir -p qa-reports
-          cp qa_output.txt "qa-reports/qa_${{ github.run_id }}.txt" 2>/dev/null \
-            || echo '(qa_output.txt missing)' > "qa-reports/qa_${{ github.run_id }}.txt"
-
-      - name: Commit QA log file
-        if: always()
-        uses: EndBug/add-and-commit@v9
-        with:
-          add: "qa-reports/qa_${{ github.run_id }}.txt"
-          message: "chore(qa): save headless QA output for run ${{ github.run_id }}"
-          default_author: github_actions
