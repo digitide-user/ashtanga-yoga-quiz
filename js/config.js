@@ -5,6 +5,9 @@
     window.STRICT_ONLINE_RANKING ??= true;
     window.RANKING_API_URL ??= 'https://script.google.com/macros/s/AKfycbx3ecFodPRt3BWmslQEULFlJJYJ4Dh1FIZczKB8m6IxUpUjkLObnjPoS2fB-ZJ27oQHew/exec';
     window.RANKING_SHARED_KEY ??= '8f2c9a7b3d6e1f0a4c5b7d9e2f3a6c1b';
+    // Supabase 既定
+    window.SUPABASE_URL ??= 'https://utpcwlxxmgzkcrwfbiav.supabase.co';
+    window.SUPABASE_ANON_KEY ??= 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV0cGN3bHh4bWd6a2Nyd2ZiaWF2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY0MTYzNTgsImV4cCI6MjA3MTk5MjM1OH0.lCGFzl0pExl3uqsSh4h0jrPsmtowQ9618q4lZyxX4o4';
   } catch (e) {
     if (typeof window.ENABLE_ONLINE_RANKING === 'undefined') window.ENABLE_ONLINE_RANKING = true;
     if (typeof window.STRICT_ONLINE_RANKING === 'undefined') window.STRICT_ONLINE_RANKING = true;

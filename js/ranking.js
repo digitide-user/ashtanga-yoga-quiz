@@ -1,6 +1,6 @@
 // セントリー（読み込み確認）
 (function(){
-    try { console.log('[RANK] ranking.js loaded'); } catch (_) {}
+    try { console.log('[RANK] ranking.js loaded (supabase)') } catch (_) {}
 })();
 
 // ランキングAPI ベースURL（末尾 /exec）を一元定義
@@ -469,30 +469,26 @@ class LocalRankingSystem {
 // オンラインランキングシステム
 class OnlineRankingSystem {
     constructor() {
-        // デフォルトはオンライン機能を無効化し、安定してローカル表示を優先
-        const defaultApi = (typeof window !== 'undefined' && window.RANKING_API_URL) ? window.RANKING_API_URL : API_BASE;
-        const onlineEnabled = (typeof window !== 'undefined' && window.ENABLE_ONLINE_RANKING === true);
-        this.apiUrl = onlineEnabled ? defaultApi : '';
-        this.fallbackToLocal = true; // オンライン失敗時はローカル版使用
-        this.timeout = 5000; // 5秒タイムアウト（パフォーマンス改善）
+        try {
+            this.sb = (typeof supabase !== 'undefined')
+                ? supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY, { auth: { persistSession: false } })
+                : null;
+        } catch (_) { this.sb = null; }
+        this.timeout = 5000;
         this.localSystem = new LocalRankingSystem();
-        console.log('[Ranking] Online enabled:', onlineEnabled, 'API URL:', this.apiUrl || '(disabled)');
         if (window.STRICT_ONLINE_RANKING) {
-            console.log('[RANK] ONLINE ONLY mode enabled');
+            console.log('[RANK] ONLINE ONLY mode enabled (supabase)');
         }
     }
 
     // 軽量ヘルスチェック（ping）。失敗時はオンライン無効化
     async healthCheckPing(timeoutMs) {
         try {
-            if (!this.isOnlineEnabled()) return false;
-            const controller = new AbortController();
+            if (!this.sb) return false;
             const ms = typeof timeoutMs == "number" ? timeoutMs : 2000;
-            const timeoutId = setTimeout(() => controller.abort(), ms);
-            const url = `${this.apiUrl}?action=ping&k=${encodeURIComponent(window.RANKING_SHARED_KEY || '')}`;
-            const res = await fetch(url, { signal: controller.signal });
-            clearTimeout(timeoutId);
-            if (!res.ok) throw new Error('HTTP ' + res.status);
+            const p = this.sb.from('scores').select('name').limit(1);
+            const res = await Promise.race([p, new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')), ms))]);
+            if (res && res.error) throw res.error;
             return true;
         } catch (e) {
             if (window.STRICT_ONLINE_RANKING) {
@@ -527,177 +523,68 @@ class OnlineRankingSystem {
     // オンラインにスコア送信（CORS問題を回避するためGETリクエストに変更）
     async submitScoreOnline(scoreData) {
         try {
-            console.log('[RANK] ONLINE SUBMIT start');
-            console.log('Submitting score data:', scoreData);
-            console.log('API URL:', this.apiUrl);
-            console.log('Timeout:', this.timeout + 'ms');
-            
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => {
-                console.warn('Request timeout after', this.timeout + 'ms');
-                controller.abort();
-            }, this.timeout);
-            
-            // データを個別のパラメータとして送信（Google Apps Script対応）
-            const params = new URLSearchParams({
-                action: 'addScore',
+            console.log('[RANK] ONLINE SUBMIT start (supabase)');
+            if (!this.sb) throw new Error('supabase client missing');
+            // simple client-side rate limit 1.5s
+            const now = Date.now();
+            this._lastInsert = this._lastInsert || 0;
+            const delta = now - this._lastInsert;
+            if (delta < 1500) await new Promise(r=>setTimeout(r, 1500 - delta));
+            this._lastInsert = Date.now();
+
+            const payload = [{
                 name: scoreData.name,
-                score: scoreData.score.toString(),
-                totalQuestions: scoreData.totalQuestions.toString(),
-                percentage: scoreData.percentage.toString(),
-                timeSpent: scoreData.timeSpent.toString(),
-                timestamp: scoreData.timestamp.toString(),
-                userAgent: scoreData.userAgent,
-                sessionId: scoreData.sessionId,
-                k: (window.RANKING_SHARED_KEY || '')
-            });
-            
-            // 送信パラメータ確認（簡易）
-            console.log('URL Param action:', params.get('action'));
-            
-            const fullUrl = `${this.apiUrl}?${params.toString()}`;
-            console.log('Full request URL length:', fullUrl.length);
-            
-            if (fullUrl.length > 2000) {
-                console.warn('URL length exceeds recommended limit:', fullUrl.length);
-            }
-            
-            console.log('Sending GET request...');
-            const response = await fetch(fullUrl, {
-                method: 'GET',
-                signal: controller.signal
-            });
-            
-            clearTimeout(timeoutId);
-            
-            console.log('Response received:');
-            console.log('- Status:', response.status);
-            console.log('- Status Text:', response.statusText);
-            console.log('- Headers:', Object.fromEntries(response.headers.entries()));
-            
-            if (!response.ok) {
-                const errorText = await response.text().catch(() => 'Unable to read error response');
-                console.error('HTTP Error Response Body:', errorText);
-                throw new Error('HTTP error: ' + response.status + ' ' + response.statusText);
-            }
-            
-            const result = await response.json();
-            console.log('Parsed JSON result:', result);
-            if (result && result.success === true) {
-                console.log('[RANK] ONLINE SUBMIT success');
-                return true;
-            }
-            if (result && result.error === 'rate_limited') {
-                const delay = 1500;
-                console.warn('[RANK] rate_limited → retry in ' + delay + 'ms');
-                await new Promise(r => setTimeout(r, delay));
-                // 1回だけの再試行。2回目も rate_limited の場合は失敗扱い
-                const retryOk = await this.submitScoreOnline(scoreData);
-                return retryOk;
-            }
-            if (window.STRICT_ONLINE_RANKING) {
-                console.error('[RANK] SUBMIT fail → BLOCK:', JSON.stringify(result));
-                this.showBlockingError('ランキングサーバーに接続できません。［再読み込み］');
-                return false;
-            }
-            throw new Error('API returned success=false: ' + JSON.stringify(result));
+                score: scoreData.score,
+                total_questions: scoreData.totalQuestions,
+                percentage: scoreData.percentage,
+                time_spent: scoreData.timeSpent,
+                user_agent: navigator.userAgent,
+                session_id: scoreData.sessionId || ""
+            }];
+            const { data, error } = await this.sb.from('scores').insert(payload).select().single();
+            if (error) throw error;
+            console.log('[RANK] ONLINE SUBMIT success (supabase)');
+            return true;
         } catch (error) {
-            console.error('[RANK] ONLINE SUBMIT fail:', error?.message || error);
-            console.error('Error type:', error.name);
-            console.error('Error message:', error.message);
-            console.error('Error stack:', error.stack);
-            
-            if (error.name === 'AbortError') {
-                console.error('Request was aborted due to timeout');
-            } else if (error.name === 'TypeError' && error.message.includes('fetch')) {
-                console.error('Network error - check internet connection and API URL');
-            }
-            
+            console.error('[RANK] SUBMIT fail → BLOCK (supabase):', error?.message || error);
+            if (window.STRICT_ONLINE_RANKING) this.showBlockingError('ランキングサーバーに接続できません。［再読み込み］');
             return false;
         }
+    
     }
 
     // オンラインからランキング取得（期間/件数指定）
     async getRankings(period = 'allTime', limit = 50) {
         try {
-            console.log('[RANK] ONLINE FETCH start', { period, limit });
-            
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => {
-                console.warn('Rankings fetch timeout after', this.timeout + 'ms');
-                controller.abort();
-            }, this.timeout);
-            
-            const url = `${this.apiUrl}?action=getRankings&period=${encodeURIComponent(period)}&limit=${encodeURIComponent(limit)}&k=${encodeURIComponent(window.RANKING_SHARED_KEY || '')}`;
-            console.log('Fetching rankings from:', url);
-            
-            const response = await fetch(url, {
-                signal: controller.signal
-            });
-            
-            clearTimeout(timeoutId);
-            
-            console.log('Rankings response:');
-            console.log('- Status:', response.status);
-            console.log('- Status Text:', response.statusText);
-            
-            if (!response.ok) {
-                const errorText = await response.text().catch(() => 'Unable to read error response');
-                console.error('HTTP Error Response Body:', errorText);
-                throw new Error('HTTP error: ' + response.status + ' ' + response.statusText);
-            }
-            
-            const result = await response.json();
-            console.log('Rankings result:', result);
-            console.log('Rankings type:', typeof result.rankings);
-            console.log('Rankings value:', result.rankings);
-            if (result && result.error === 'rate_limited') {
-                const delay = 1500;
-                console.warn('[RANK] rate_limited → retry in ' + delay + 'ms');
-                await new Promise(r => setTimeout(r, delay));
-                return await this.getRankings(period, limit);
-            }
-            if (result && result.error === 'rate_limited') {
-                const delay = 1500;
-                console.warn('[RANK] rate_limited → retry in ' + delay + 'ms');
-                await new Promise(r => setTimeout(r, delay));
-                return await this.getRankings(period, limit);
-            }
-            
-            // Google Apps Scriptが返すデータ形式に対応
-            let rankings = null;
-            if (result && result.success === true && result.rankings != null) {
-                // 配列として返された場合
-                if (Array.isArray(result.rankings)) {
-                    rankings = result.rankings;
-                }
-                // オブジェクトとして返された場合（空のオブジェクト {} など）
-                else if (typeof result.rankings === 'object') {
-                    rankings = Object.values(result.rankings);
-                    // 空のオブジェクトの場合は空配列にする
-                    if (rankings.length === 0) {
-                        rankings = [];
-                    }
-                }
-            }
-            
-            console.log('Processed rankings:', rankings);
-            console.log('Rankings count:', rankings?.length || 0);
-            if (window.STRICT_ONLINE_RANKING && (!rankings || rankings.length === 0)) {
+            console.log('[RANK] ONLINE FETCH start (supabase)', { period, limit });
+            if (!this.sb) return [];
+            const now = new Date();
+            let since = new Date(0);
+            if (period === "daily") since = new Date(now.getTime() - 24*60*60*1000);
+            else if (period === "weekly") since = new Date(now.getTime() - 7*24*60*60*1000);
+            else if (period === "monthly") since = new Date(now.getTime() - 30*24*60*60*1000);
+            const q = this.sb.from('scores')
+                .select('name,score,total_questions,percentage,time_spent,created_at')
+                .gte('created_at', since.toISOString())
+                .order('score', { ascending: false })
+                .order('percentage', { ascending: false })
+                .order('time_spent', { ascending: true })
+                .limit(limit);
+            const { data, error } = await q;
+            if (error) throw error;
+            const rows = Array.isArray(data) ? data : [];
+            console.log('Processed rankings (supabase):', rows?.length || 0);
+            if (window.STRICT_ONLINE_RANKING && rows.length === 0) {
                 this.showBlockingError('ランキングサーバーに接続できません。［再読み込み］');
             }
-            return rankings || [];
+            return rows;
         } catch (error) {
-            console.error('[RANK] ONLINE FETCH fail:', error?.message || error);
+            console.error('[RANK] ONLINE FETCH fail (supabase):', error?.message || error);
             console.error('Error type:', error.name);
             console.error('Error message:', error.message);
-            
-            if (error.name === 'AbortError') {
-                console.error('Rankings fetch was aborted due to timeout');
-            }
-            
             return [];
         }
+    
     }
 
     // ハイブリッド処理（オンライン優先、失敗時はローカル）
