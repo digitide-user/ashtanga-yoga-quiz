@@ -418,6 +418,26 @@ function showResult() {
         }
         console.log('=== RANKING PROCESS COMPLETE ===');
     }, 1500);
+
+    // [RANK PATCH] --- begin (do not duplicate) ---
+    try {
+      const userName = (localStorage.getItem('yogaquiz_username') || '').trim() || '匿名';
+      const entry = {
+        name: userName,
+        score: typeof finalScore !== 'undefined' ? finalScore : (window.__lastScore || score || 0),
+        totalQuestions: typeof totalQuestions !== 'undefined' ? totalQuestions : (window.__totalQuestions || 10),
+        percentage: Math.round( ( (typeof finalScore !== 'undefined' ? finalScore : (window.__lastScore || score || 0)) / (typeof totalQuestions !== 'undefined' ? totalQuestions : (window.__totalQuestions || 10)) ) * 100 ),
+        timeSpent: (window.__timeSpentSec || timeSpentSec || 0)
+      };
+      if (window.rankingSystem && typeof window.rankingSystem.submitScore === 'function') {
+        window.rankingSystem.submitScore(entry).catch(console.error);
+      } else {
+        console.warn('[RANK] submitScore not available');
+      }
+    } catch (e) {
+      console.error('[RANK] submit hook error', e);
+    }
+    // [RANK PATCH] --- end ---
 }
 
 restartBtn.addEventListener('click', () => {
