@@ -94,47 +94,49 @@
     try { await sb.from('scores').select('id').limit(1); } catch {}
   });
 
-  // --- submitScore: クイズ終了時に呼ぶ統一API（idempotent） ---
-  if (!window.rankingSystem) window.rankingSystem = {};
-  if (typeof window.rankingSystem.submitScore !== 'function') {
-    window.rankingSystem.submitScore = async function(entry){
-      const payload = {
-        name: (entry && entry.name) || '匿名',
-        score: Number(entry && entry.score || 0),
-        total_questions: Number(entry && entry.totalQuestions || 10),
-        percentage: Number(entry && entry.percentage || 0),
-        time_spent: Number(entry && entry.timeSpent || 0)
-      };
-      try {
-        if (window.supabase && window.SUPABASE_URL && window.SUPABASE_ANON_KEY) {
-          const sb = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY, { auth:{ persistSession:false }});
-          const { data, error, status } = await sb.from('scores').insert([payload]).select().single();
-          if (error) throw new Error(error.message || ('insert error ' + status));
-          console.log('[RANK] INSERT ok (sb-js)', data);
-          return data;
-        }
-        // RESTフォールバック
-        const base = (window.SUPABASE_URL||'').replace(/\/$,'');
-        const url = base + '/rest/v1/scores';
-        const res = await fetch(url, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Prefer': 'return=representation',
-            apikey: window.SUPABASE_ANON_KEY,
-            Authorization: `Bearer ${window.SUPABASE_ANON_KEY}`
-          },
-          body: JSON.stringify([payload])
-        });
-        console.log(`[QA] CAPTURE POST ${res.status} ${url}`); // Actions 収集用
-        if (!res.ok) throw new Error('REST insert failed: ' + res.status);
-        const data = await res.json();
-        console.log('[RANK] INSERT ok (rest)', data && data[0]);
-        return data && data[0];
-      } catch (e) {
-        console.error('[RANK] INSERT fail', e);
-        throw e;
-      }
+  // --- [RANK] unified submitScore API (Supabase insert) ---
+  window.rankingSystem = window.rankingSystem || {};
+  window.rankingSystem.__submittedOnce = false;
+  window.rankingSystem.submitScore = async function(entry){
+    // entry: { name, score, totalQuestions, percentage, timeSpent }
+    const payload = {
+      name: (entry && entry.name) || '匿名',
+      score: Number(entry && entry.score || 0),
+      total_questions: Number(entry && entry.totalQuestions || 10),
+      percentage: Number(entry && entry.percentage || 0),
+      time_spent: Number(entry && entry.timeSpent || 0)
     };
-  }
+    try {
+      if (window.supabase && window.SUPABASE_URL && window.SUPABASE_ANON_KEY) {
+        const sbc = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY, { auth:{ persistSession:false }});
+        const { data, error, status } = await sbc.from('scores').insert([payload]).select().single();
+        if (error) throw new Error(error.message || ('insert error ' + status));
+        console.log('[RANK] INSERT ok (sb-js)', data);
+        return data;
+      }
+      // REST フォールバック（QA用のCAPTUREログ付き）
+      const base = (window.SUPABASE_URL||'').replace(/\/$,'');
+      const url = base + '/rest/v1/scores';
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Prefer': 'return=representation',
+          apikey: window.SUPABASE_ANON_KEY,
+          Authorization: `Bearer ${window.SUPABASE_ANON_KEY}`
+        },
+        body: JSON.stringify([payload])
+      });
+      console.log(`[QA] CAPTURE POST ${res.status} ${url}`);
+      if (!res.ok) throw new Error('REST insert failed: ' + res.status);
+      const data = await res.json();
+      console.log('[RANK] INSERT ok (rest)', data && data[0]);
+      return data && data[0];
+    } catch (e) {
+      console.error('[RANK] INSERT fail', e);
+      throw e;
+    } finally {
+      window.rankingSystem.__submittedOnce = true;
+    }
+  };
 })();
