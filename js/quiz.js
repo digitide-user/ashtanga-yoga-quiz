@@ -762,11 +762,58 @@ setupQuiz();
   }
 })();
 /* ===== /RANKING AUTOBOOT ===== */
-// safe bootstrap to ensure quiz appears
+// --- safety helpers to prevent null addEventListener crashes ---
+function on(node, evt, handler) {
+  if (node && node.addEventListener) node.addEventListener(evt, handler);
+  else console.warn('[QUIZ] missing node for', evt);
+}
+
+function ensureRoot() {
+  let root = document.getElementById('quiz') ||
+             document.getElementById('quiz-container') ||
+             document.querySelector('.quiz-root');
+  if (!root) {
+    root = document.createElement('div');
+    root.id = 'quiz';
+    document.body.appendChild(root);
+    console.warn('[QUIZ] injected #quiz container');
+  }
+  return root;
+}
+
+function ensureStartButton() {
+  let btn = document.getElementById('start-btn') ||
+            document.getElementById('start-quiz') ||
+            document.querySelector('[data-role="start-quiz"]');
+  if (!btn) {
+    btn = document.createElement('button');
+    btn.id = 'start-quiz';
+    btn.textContent = 'クイズを始める';
+    // できるだけ上に出す
+    document.body.prepend(btn);
+    console.warn('[QUIZ] injected #start-quiz button');
+  }
+  return btn;
+}
+
+// --- safe bootstrap: never throw even if elements are missing ---
 document.addEventListener('DOMContentLoaded', () => {
+  // 既に初期化済みなら何もしない
   if (window.__QUIZ_INIT_CALLED__) return;
   window.__QUIZ_INIT_CALLED__ = true;
-  if (typeof window.initQuiz === 'function') window.initQuiz();
-  else if (window.quiz && typeof window.quiz.init === 'function') window.quiz.init();
-  else console.warn('[QUIZ] init function not found');
+
+  // ルート要素を確保（無ければ作る）
+  const root = ensureRoot();
+  void root; // kept for potential future use
+
+  // 既存の初期化関数を特定
+  const run =
+    (typeof window.initQuiz === 'function' && window.initQuiz) ||
+    (window.quiz && typeof window.quiz.init === 'function' && window.quiz.init) ||
+    null;
+
+  // スタートボタンを用意して、クリックで起動（関数が無ければ警告）
+  const startBtn = ensureStartButton();
+  if (run) on(startBtn, 'click', () => run());
+  else console.warn('[QUIZ] init function not found; verify quiz.js exports');
 });
