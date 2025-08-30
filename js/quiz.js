@@ -762,3 +762,11 @@ setupQuiz();
   }
 })();
 /* ===== /RANKING AUTOBOOT ===== */
+// safe bootstrap to ensure quiz appears
+document.addEventListener('DOMContentLoaded', () => {
+  if (window.__QUIZ_INIT_CALLED__) return;
+  window.__QUIZ_INIT_CALLED__ = true;
+  if (typeof window.initQuiz === 'function') window.initQuiz();
+  else if (window.quiz && typeof window.quiz.init === 'function') window.quiz.init();
+  else console.warn('[QUIZ] init function not found');
+});
