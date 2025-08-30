@@ -831,3 +831,12 @@ document.addEventListener('DOMContentLoaded', () => {
   if (run) on(startBtn, 'click', () => run());
   else console.warn('[QUIZ] init function not found; verify quiz.js exports');
 });
+
+// expose init to window (for QA/bootstrap)
+try {
+  if (typeof initQuiz === 'function') {
+    window.initQuiz = window.initQuiz || initQuiz;
+    window.quiz = window.quiz || {};
+    if (typeof window.quiz.init !== 'function') window.quiz.init = initQuiz;
+  }
+} catch (e) {}
