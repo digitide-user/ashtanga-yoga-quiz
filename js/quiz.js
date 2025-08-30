@@ -649,7 +649,7 @@ setupQuiz();
         Authorization: `Bearer ${window.SUPABASE_ANON_KEY}`,
       }
     });
-    console.log(`[QA] CAPTURE GET ${res.status} ${url.toString()}`); // QA 収集用
+    console.log(`[QA] CAPTURE GET ${res.status} ${url.toString()}`); // for Actions QA
     if (!res.ok) throw new Error('REST get failed: ' + res.status);
     return await res.json();
   }
@@ -664,15 +664,12 @@ setupQuiz();
       });
       if (!window.ENABLE_ONLINE_RANKING) return;
 
-      // supabase-js が無ければ読み込む
       if (typeof window.supabase === 'undefined') {
         await loadScript('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2');
       }
-      // ranking.js を試しに読み込む（無くてもOK）
       if (!window.rankingSystem) {
         try { await loadScript('js/ranking.js?v=autoboot'); } catch (_) {}
       }
-      // 見つからなければ最小フォールバックを提供（GETのみ）
       if (!window.rankingSystem) {
         window.rankingSystem = {
           async open(period='allTime', limit=50) {
@@ -683,7 +680,6 @@ setupQuiz();
         };
         console.log('[RANK] fallback rankingSystem installed');
       }
-      // ボタン生成＆バインド
       const btn = ensureOpenButton();
       if (!btn.dataset.rankingBound) {
         btn.dataset.rankingBound = '1';
