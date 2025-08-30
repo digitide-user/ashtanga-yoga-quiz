@@ -443,18 +443,32 @@ function showResult() {
     // [RANK PATCH] --- end ---
 }
 
-restartBtn.addEventListener('click', () => {
-    // リスタート時にもボタン状態を完全リセット
-    resetAllButtonStates();
-    
-    resultContainer.classList.add('hidden');
-    quizContainer.classList.remove('hidden');
-    
-    // 少し遅延してからクイズを再開始
-    setTimeout(() => {
-        setupQuiz();
-    }, 100);
-});
+const __handleRestart = () => {
+  // リスタート時にもボタン状態を完全リセット
+  try { resetAllButtonStates && resetAllButtonStates(); } catch(e) { console.warn('[QUIZ] resetAllButtonStates unavailable', e); }
+  try { resultContainer && resultContainer.classList.add('hidden'); } catch(e) {}
+  try { quizContainer && quizContainer.classList.remove('hidden'); } catch(e) {}
+  // 少し遅延してからクイズを再開始
+  setTimeout(() => { try { setupQuiz && setupQuiz(); } catch(e) { console.error('[QUIZ] setupQuiz failed', e); } }, 100);
+};
+
+// restartBtn が未定義/未配置でも落ちないようにガード
+let __restartBtn = (typeof restartBtn !== 'undefined' ? restartBtn : null)
+                || document.getElementById('restart-btn')
+                || document.getElementById('restartBtn')
+                || document.querySelector('[data-role="restart"]');
+
+if (__restartBtn && __restartBtn.addEventListener) {
+  __restartBtn.addEventListener('click', __handleRestart);
+} else {
+  console.warn('[QUIZ] restart button not found → inject fallback');
+  const fb = document.createElement('button');
+  fb.id = 'restart-btn';
+  fb.textContent = 'もう一度';
+  fb.style.margin = '16px';
+  document.body.prepend(fb);
+  fb.addEventListener('click', __handleRestart);
+}
 
 shareInstagramBtn.addEventListener('click', () => {
     // IMPORTANT: Replace 'https://example.com/your-game-url' with the actual URL where your game is hosted online.
