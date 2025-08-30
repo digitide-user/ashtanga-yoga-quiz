@@ -94,45 +94,47 @@
     try { await sb.from('scores').select('id').limit(1); } catch {}
   });
 
-  // --- ensure submitScore() API (idempotent) ---
+  // --- submitScore: クイズ終了時に呼ぶ統一API（idempotent） ---
   if (!window.rankingSystem) window.rankingSystem = {};
-  window.rankingSystem.submitScore = window.rankingSystem.submitScore || (async function(entry){
-    try {
+  if (typeof window.rankingSystem.submitScore !== 'function') {
+    window.rankingSystem.submitScore = async function(entry){
       const payload = {
-        name: entry.name || '匿名',
-        score: Number(entry.score||0),
-        total_questions: Number(entry.totalQuestions||10),
-        percentage: Number(entry.percentage||0),
-        time_spent: Number(entry.timeSpent||0)
+        name: (entry && entry.name) || '匿名',
+        score: Number(entry && entry.score || 0),
+        total_questions: Number(entry && entry.totalQuestions || 10),
+        percentage: Number(entry && entry.percentage || 0),
+        time_spent: Number(entry && entry.timeSpent || 0)
       };
-      // supabase-js があればそれを優先
-      if (window.supabase && window.SUPABASE_URL && window.SUPABASE_ANON_KEY) {
-        const sb2 = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY, { auth:{ persistSession:false }});
-        const { data, error, status } = await sb2.from('scores').insert([payload]).select().single();
-        if (error) throw new Error(error.message || ('insert error ' + status));
-        console.log('[RANK] INSERT ok (sb-js)', data);
-        return data;
+      try {
+        if (window.supabase && window.SUPABASE_URL && window.SUPABASE_ANON_KEY) {
+          const sb = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY, { auth:{ persistSession:false }});
+          const { data, error, status } = await sb.from('scores').insert([payload]).select().single();
+          if (error) throw new Error(error.message || ('insert error ' + status));
+          console.log('[RANK] INSERT ok (sb-js)', data);
+          return data;
+        }
+        // RESTフォールバック
+        const base = (window.SUPABASE_URL||'').replace(/\/$,'');
+        const url = base + '/rest/v1/scores';
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Prefer': 'return=representation',
+            apikey: window.SUPABASE_ANON_KEY,
+            Authorization: `Bearer ${window.SUPABASE_ANON_KEY}`
+          },
+          body: JSON.stringify([payload])
+        });
+        console.log(`[QA] CAPTURE POST ${res.status} ${url}`); // Actions 収集用
+        if (!res.ok) throw new Error('REST insert failed: ' + res.status);
+        const data = await res.json();
+        console.log('[RANK] INSERT ok (rest)', data && data[0]);
+        return data && data[0];
+      } catch (e) {
+        console.error('[RANK] INSERT fail', e);
+        throw e;
       }
-      // REST フォールバック
-      const base = (window.SUPABASE_URL||'').replace(/\/$/,'');
-      const url = new URL(base + '/rest/v1/scores');
-      const res = await fetch(url.toString(), {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          apikey: window.SUPABASE_ANON_KEY,
-          Authorization: `Bearer ${window.SUPABASE_ANON_KEY}`
-        },
-        body: JSON.stringify([payload])
-      });
-      console.log(`[QA] CAPTURE POST ${res.status} ${url.toString()}`); // Actions 収集用
-      if (!res.ok) throw new Error('REST insert failed: ' + res.status);
-      const data = await res.json();
-      console.log('[RANK] INSERT ok (rest)', data && data[0]);
-      return data && data[0];
-    } catch (e) {
-      console.error('[RANK] INSERT fail', e);
-      throw e;
-    }
-  });
+    };
+  }
 })();
