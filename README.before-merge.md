@@ -1,81 +1,63 @@
-# アシュタンガ ヨガ アーサナクイズ — 開発・運用ハンドブック（決定版）
+# アシュタンガヨガ アーサナクイズ 🧘‍♀️
 
-このファイルだけ見れば、初見のAI/Coder（=codex）でも、これまで参加していたかのように全体を把握し、即作業できます。
+アシュタンガヨガのアーサナ（ポーズ）の名前を覚えるための学習用クイズアプリケーションです。
 
----
+![クイズ画面](./images/screenshot.png)
 
-## 0. 要約（本番・構成・ステータス）
+## ✨ 特徴
 
-- 本番URL: `https://ashtanga-yoga-quiz.onrender.com`
-- ホスティング: Render（Static Site）
-- ランキング: Supabase（テーブル: `scores` / anon の read/insert を許可）
-- クライアント: Vanilla JS（index.html で defer ロード）
-- CI/QA: GitHub Actions “QA - Ranking (Prod)”（Puppeteerで本番を検証、SummaryにQA Output掲載）
+- **58種類のアーサナ** から毎回10問をランダム出題
+- **4択クイズ形式** で直感的に学習
+- **ランキング機能** で競い合いながら学習
+- **レスポンシブデザイン** でモバイル・デスクトップ対応
+- **オフライン対応** でいつでも学習可能
 
----
+## 🎯 対象者
 
-## 1. 役割分担（人間 ↔ ChatGPT ↔ codex）
+- アシュタンガヨガの練習者（初級〜中級）
+- ヨガインストラクター
+- アーサナ名を覚えたい方
 
-- 人間: Supabase/Render など Web UI 操作と結果確認
-- ChatGPT: codex へ貼る指示ブロックを作成
-- codex: リポジトリ内の全ファイル作業（編集/コミット/プッシュ）
+## 🚀 デモ
 
-原則: “Webコンソール操作は人間”、 “Gitとファイル操作は codex”。
+https://ashtanga-yoga-quiz.onrender.com
 
----
+## 📱 使い方
 
-## 2. 構成（要点）
+1. **「クイズを始める」** ボタンをクリック
+2. 表示された画像を見て、正しいアーサナ名を4択から選択
+3. 10問すべてに答えて結果を確認
+4. ランキングで他の参加者と競争
 
-- `index.html`: head 末尾で defer 読み（config → supabase-js → ranking → quiz の順）
-- `js/ranking.js`: Supabase からの GET/INSERT、モーダル表示、submitScore API 提供
-- `js/quiz.js`: クイズ本体。結果表示時に submitScore を呼び出し
+## 🏆 ランキング機能
 
----
+- **今日・今週・今月・総合** の4つの期間別ランキング
+- **スコア・正答率・回答時間** で総合評価
+- **ニックネーム登録** で参加（個人情報不要）
 
-## 3. ランキング（Supabase）
+## 🛠️ 技術スタック
 
-- テーブル `scores`: name, score, total_questions, percentage, time_spent, created_at
-- RLS ポリシー: anon に read/insert を許可（service_role はリポジトリに含めない）
+- **HTML5** - セマンティックマークアップ
+- **CSS3** - モダンなスタイリング（Grid, Flexbox, CSS Variables）
+- **Vanilla JavaScript** - フレームワーク不使用
+- **Local Storage API** - クライアントサイドデータ保存
 
----
+## 📂 プロジェクト構造
 
-## 4. QA（自動検証）
+```
+ashtanga-yoga-quiz/
+├── index.html          # メインHTML
+├── css/
+│   └── style.css       # スタイルシート
+├── js/
+│   ├── quiz.js         # クイズロジック
+│   └── ranking.js      # ランキング機能
+├── images/             # アーサナ画像
+│   ├── Shiva_background.png
+│   └── [1-43].png
+└── README.md
 
-- GitHub Actions “QA - Ranking (Prod)”
-  - puppeteer で本番アクセス
-  - `[RANK]` ログと `/rest/v1/scores` の GET(200) と（QA時は）POST(200/201) を Summary に記録
-
----
-
-## 5. よくある事象（運用ランブック）
-
-- CSS MIME 警告: `css/style.css` を参照しているか確認（`styles.css` は使わない）
-- GET/POST 401/403: Supabase の RLS/ポリシー/anon 権限を確認
-- STRICT 表示: Supabase 設定未定義 or キー誤り
-- Actions 失敗: `qa_output.txt` と Summary の “QA Output” を確認
-
----
-
-## 6. 変更履歴（要点）
-
-- GAS → Supabase へ移行（RLS: read/insert）
-- 本番検証を GitHub Actions 化（GET/POST のログをSummaryに出力）
-
----
-
-## 付録（旧ドキュメントのバックアップ）
-
-<details><summary>旧 README（バックアップ）</summary>
-
-参照: `README.before-merge.md`
-
-</details>
-
-<details><summary>旧 CLAUDE.md（バックアップ）</summary>
-
-参照: `CLAUDE.before-merge.md`
-
-</details>
+## 🧪 ランキング機能デバッグ
 
 オンラインランキング安定化のため、簡易デバッグページを追加しました。
 
