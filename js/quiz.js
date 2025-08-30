@@ -452,22 +452,21 @@ const __handleRestart = () => {
   setTimeout(() => { try { setupQuiz && setupQuiz(); } catch(e) { console.error('[QUIZ] setupQuiz failed', e); } }, 100);
 };
 
-// restartBtn が未定義/未配置でも落ちないようにガード
+// 既存のボタンがあればバインド。無ければ何もしない（自動注入しない）
 let __restartBtn = (typeof restartBtn !== 'undefined' ? restartBtn : null)
                 || document.getElementById('restart-btn')
                 || document.getElementById('restartBtn')
                 || document.querySelector('[data-role="restart"]');
-
 if (__restartBtn && __restartBtn.addEventListener) {
   __restartBtn.addEventListener('click', __handleRestart);
 } else {
-  console.warn('[QUIZ] restart button not found → inject fallback');
-  const fb = document.createElement('button');
-  fb.id = 'restart-btn';
-  fb.textContent = 'もう一度';
-  fb.style.margin = '16px';
-  document.body.prepend(fb);
-  fb.addEventListener('click', __handleRestart);
+  console.warn('[QUIZ] restart button not found at boot; will wait for it to exist');
+  document.addEventListener('click', (e) => {
+    const t = e.target;
+    if (t && (t.id === 'restart-btn' || t.id === 'restartBtn' || (t.matches && t.matches('[data-role="restart"]')))) {
+      __handleRestart();
+    }
+  });
 }
 
 shareInstagramBtn.addEventListener('click', () => {

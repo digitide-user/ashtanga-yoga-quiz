@@ -22,60 +22,11 @@
     });
   </script>
 
-  <!-- EARLY compat (non-defer): prevent null from DOM queries -->
-  <script>
-    (function () {
-      if (window.__EARLY_COMPAT__) return; window.__EARLY_COMPAT__ = true;
-      const inject = (target, sel, place) => {
-        const stub = document.createElement('div');
-        if (typeof sel === 'string' && sel.startsWith('#')) stub.id = sel.slice(1);
-        else if (typeof sel === 'string') stub.setAttribute('data-compat-selector', sel);
-        (place && place.isConnected ? place : (document.body || document.documentElement)).appendChild(stub);
-        console.warn('[compat-early] injected stub for', sel || target);
-        return stub;
-      };
-      // getElementById
-      const origGet = Document.prototype.getElementById;
-      Document.prototype.getElementById = function (id) {
-        const el = origGet.call(this, id);
-        return el || inject('#' + id, '#' + id);
-      };
-      // Document.querySelector / All
-      const oDQS  = Document.prototype.querySelector;
-      const oDQSA = Document.prototype.querySelectorAll;
-      Document.prototype.querySelector = function (sel) {
-        const el = oDQS.call(this, sel);
-        return el || inject('document.querySelector', sel);
-      };
-      Document.prototype.querySelectorAll = function (sel) {
-        const list = oDQSA.call(this, sel);
-        if (list && list.length) return list;
-        const arr = []; arr.forEach = Array.prototype.forEach;
-        console.warn('[compat-early] empty NodeList for', sel);
-        return arr;
-      };
-      // Element.querySelector / All
-      const oEQS  = Element.prototype.querySelector;
-      const oEQSA = Element.prototype.querySelectorAll;
-      Element.prototype.querySelector = function (sel) {
-        const el = oEQS.call(this, sel);
-        return el || inject('element.querySelector', sel, this);
-      };
-      Element.prototype.querySelectorAll = function (sel) {
-        const list = oEQSA.call(this, sel);
-        if (list && list.length) return list;
-        const arr = []; arr.forEach = Array.prototype.forEach;
-        console.warn('[compat-early] empty NodeList for (element)', sel);
-        return arr;
-      };
-    })();
-  </script>
-
   <!-- 読込順を保証（キャッシュバスター付き） -->
-  <script defer src="js/config.js?v=20250830-9"></script>
-  <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2?v=20250830-9"></script>
-  <script defer src="js/ranking.js?v=20250830-9"></script>
-  <script defer src="js/quiz.js?v=20250830-9"></script>
+  <script defer src="js/config.js?v=20250830-11"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2?v=20250830-11"></script>
+  <script defer src="js/ranking.js?v=20250830-11"></script>
+  <script defer src="js/quiz.js?v=20250830-11"></script>
 </head>
 <body>
   <div id="app">
@@ -86,20 +37,6 @@
       詳細ランキングを見る
     </button>
   </div>
-  <!-- （フォールバック）クイズのルートが無い場合でも描画できるよう最低限の容器を用意 -->
-  <div id="quiz" class="quiz-root"></div>
-  <!-- quiz anchors (minimal) -->
-  <div id="quiz-container">
-    <div id="image-container"></div>
-    <div id="options-container"></div>
-    <div id="result-container" class="hidden">
-      <div id="score"></div>
-      <div id="reward"></div>
-      <button id="restart-btn">もう一度</button>
-      <button id="share-instagram-btn">Instagramでシェア</button>
-    </div>
-  </div>
-  <!-- ranking modal anchors -->
-  <div id="rankingModal" class="hidden"><div id="rankingBody"></div></div>
+  
 </body>
 </html>
