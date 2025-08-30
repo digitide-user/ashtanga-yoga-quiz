@@ -31,7 +31,7 @@
     } catch(e) { console.warn('[RANK QA] force insert guard error', e); }
   }
   if (document.readyState === 'loading') {
-    window.addEventListener('DOMContentLoaded', ()=>setTimeout(qaForceInsert, 120));
+    window.addEventListener('DOMContentLoaded', ()=>setTimeout(qaForceInsert, 150));
   } else {
     setTimeout(qaForceInsert, 0);
   }
