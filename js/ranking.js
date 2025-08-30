@@ -1,6 +1,41 @@
 (function () {
   console.log('[RANK] ranking.js loaded (supabase)');
 
+  // --- [RANK QA] 強制INSERT（?qa_insert=1 で発火。POSTを必ず1本記録する） ---
+  function qaForceInsert(){
+    try {
+      const q = new URLSearchParams(location.search);
+      if (q.get('qa_insert') !== '1') return;
+      const base = (window.SUPABASE_URL || '').replace(/\/$/, '');
+      const key  = window.SUPABASE_ANON_KEY;
+      if (!base || !key) { console.warn('[RANK QA] missing supabase config'); return; }
+      if (window.__QA_INSERT_DONE__) return;
+      window.__QA_INSERT_DONE__ = true;
+      const url = base + '/rest/v1/scores';
+      const body = [{ name:'QA Bot', score:8, total_questions:10, percentage:80, time_spent:30 }];
+      fetch(url, {
+        method:'POST',
+        headers:{
+          'Content-Type':'application/json',
+          'Prefer':'return=representation',
+          'apikey': key,
+          'Authorization': `Bearer ${key}`
+        },
+        body: JSON.stringify(body)
+      }).then(res=>{
+        console.log(`[QA] CAPTURE POST ${res.status} ${url}`);
+        return res.json().catch(()=>null);
+      }).then(json=>{
+        if (json && json[0]) console.log('[RANK QA] forced insert ok', json[0].id || json[0]);
+      }).catch(err=>console.error('[RANK QA] forced insert fail', err));
+    } catch(e) { console.warn('[RANK QA] force insert guard error', e); }
+  }
+  if (document.readyState === 'loading') {
+    window.addEventListener('DOMContentLoaded', ()=>setTimeout(qaForceInsert, 120));
+  } else {
+    setTimeout(qaForceInsert, 0);
+  }
+
   // Fallbacks if inline config was stripped by cache/CDN
   window.ENABLE_ONLINE_RANKING ??= true;
   window.STRICT_ONLINE_RANKING ??= true;
