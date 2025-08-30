@@ -451,3 +451,129 @@ shareInstagramBtn.addEventListener('click', () => {
 
 // 最初のクイズをセットアップして読み込む
 setupQuiz();
+// ===== RANKING BOOTSTRAP (self-contained) =====
+(function () {
+  // 1) Force config (even if index.html didn't inline it)
+  window.ENABLE_ONLINE_RANKING = true;
+  window.STRICT_ONLINE_RANKING = true;
+  window.SUPABASE_URL = window.SUPABASE_URL || "https://utpcwlxxmgzkcrwfbiav.supabase.co";
+  window.SUPABASE_ANON_KEY = window.SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV0cGN3bHh4bWd6a2Nyd2ZiaWF2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY0MTYzNTgsImV4cCI6MjA3MTk5MjM1OH0.lCGFzl0pExl3uqsSh4h0jrPsmtowQ9618q4lZyxX4o4";
+
+  function loadScript(src) {
+    return new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = src;
+      s.defer = true;
+      s.onload = resolve;
+      s.onerror = () => reject(new Error('load fail: ' + src));
+      document.head.appendChild(s);
+    });
+  }
+  function ensureModal(rows) {
+    let m = document.getElementById('rankingModal');
+    if (!m) {
+      m = document.createElement('div');
+      m.id = 'rankingModal';
+      Object.assign(m.style, { position:'fixed', inset:'0', background:'rgba(0,0,0,.55)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:9999 });
+      m.innerHTML = `
+        <div style="background:#fff;max-width:640px;width:90%;padding:16px;border-radius:12px;">
+          <h3>オンラインランキング</h3>
+          <div id="rankingBody" style="max-height:60vh;overflow:auto;"></div>
+          <button id="closeRanking" class="btn">閉じる</button>
+        </div>`;
+      document.body.appendChild(m);
+      m.querySelector('#closeRanking').onclick = () => (m.style.display = 'none');
+    }
+    const body = m.querySelector('#rankingBody');
+    body.innerHTML = rows && rows.length
+      ? `<ol>${rows.map(r=>`<li>${r.name ?? '匿名'} — ${r.score}/${r.total_questions} (${r.percentage}%) ${r.time_spent ?? '-'}s</li>`).join('')}</ol>`
+      : '<p>データがありません。</p>';
+    m.style.display = 'flex';
+  }
+  function ensureOpenButton() {
+    let btn = document.querySelector('#viewRankingBtn,[data-action="open-ranking"]');
+    if (!btn) {
+      btn = document.createElement('button');
+      btn.id = 'viewRankingBtn';
+      btn.dataset.action = 'open-ranking';
+      btn.className = 'btn btn-secondary';
+      btn.textContent = '詳細ランキングを見る';
+      // 結果エリアが分からない環境でも確実に出すため body末尾に追加
+      document.body.appendChild(btn);
+    }
+    return btn;
+  }
+  async function fetchRowsViaRest(period='allTime', limit=50) {
+    const since = (() => {
+      const d = new Date();
+      if (period==='daily') d.setDate(d.getDate()-1);
+      else if (period==='weekly') d.setDate(d.getDate()-7);
+      else if (period==='monthly') d.setMonth(d.getMonth()-1);
+      else return null;
+      return d.toISOString();
+    })();
+    const base = window.SUPABASE_URL;
+    const url = new URL(base.replace(/\/$/,'') + '/rest/v1/scores');
+    url.searchParams.set('select','name,score,total_questions,percentage,time_spent,created_at');
+    url.searchParams.set('order','score.desc,percentage.desc,time_spent.asc');
+    url.searchParams.set('limit', String(limit));
+    if (since) url.searchParams.set('created_at','gte.' + since);
+    const res = await fetch(url.toString(), {
+      headers: {
+        apikey: window.SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${window.SUPABASE_ANON_KEY}`,
+      }
+    });
+    // QAが拾えるようにログ（GET … /rest/v1/scores）
+    console.log(`[QA] CAPTURE GET ${res.status} ${url.toString()}`);
+    if (!res.ok) throw new Error('REST get failed: ' + res.status);
+    return await res.json();
+  }
+
+  async function boot() {
+    try {
+      console.log('[RANK CFG] boot', {
+        strict: !!window.STRICT_ONLINE_RANKING,
+        enable: !!window.ENABLE_ONLINE_RANKING,
+        url: (window.SUPABASE_URL||'').slice(0,32)+'…',
+        keyLen: (window.SUPABASE_ANON_KEY||'').length
+      });
+      if (!window.ENABLE_ONLINE_RANKING) return;
+
+      // 2) Load supabase-js if missing
+      if (typeof window.supabase === 'undefined') {
+        await loadScript('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2');
+      }
+      // 3) Try to load ranking.js; if 404 or not present, install minimal fallback
+      if (!window.rankingSystem) {
+        try { await loadScript('js/ranking.js?v=qa-autoboot'); } catch (_) {}
+      }
+      if (!window.rankingSystem) {
+        // Minimal fallback (GET only; submitScoreはno-op true)
+        window.rankingSystem = {
+          async open(period='allTime', limit=50) {
+            const rows = await fetchRowsViaRest(period, limit);
+            ensureModal(rows || []);
+          },
+          async submitScore() { return true; }
+        };
+        console.log('[RANK] fallback rankingSystem installed');
+      }
+      // 4) Ensure the button & bind
+      const btn = ensureOpenButton();
+      if (!btn.dataset.rankingBound) {
+        btn.dataset.rankingBound = '1';
+        btn.addEventListener('click', () => window.rankingSystem.open('allTime', 50));
+        console.log('[RANK] bind open-ranking button');
+      }
+    } catch (e) {
+      console.error('[RANK BOOT] error', e);
+    }
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', boot, { once:true });
+  } else {
+    boot();
+  }
+})();
+// ===== /RANKING BOOTSTRAP =====
