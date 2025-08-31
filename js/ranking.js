@@ -174,3 +174,39 @@ if (typeof window !== "undefined") {
     } catch(_) {}
   }, true);
 }
+// >>> BEGIN: production lock against QA autoboot <<<
+;(function(){
+  try {
+    // Never run QA in production
+    try { window.QA_AUTOBOOT = false; } catch(_) {}
+    const BLOCK = /qa-?autoboot|qa_|\bautoboot\b/i;
+    // Block script injections that look like QA loaders
+    const _append = Element.prototype.appendChild;
+    Element.prototype.appendChild = function(node){
+      try{
+        if (node && node.tagName === 'SCRIPT'){
+          const src = (node.src || node.getAttribute?.('src') || '');
+          if (BLOCK.test(src)){ console.warn('[RANK] blocked QA script:', src); return node; }
+        }
+      }catch(_) {}
+      return _append.call(this, node);
+    };
+    // Purge already-inserted QA scripts / debug buttons
+    const purge = () => {
+      try {
+        document.querySelectorAll('script[src*="qa-autoboot"],script[src*="qa_"]').forEach(s=>s.remove());
+        const labels = new Set(['クイズを始める','詳細ランキングを見る']);
+        document.querySelectorAll('button').forEach(b=>{
+          const t=(b.textContent||b.innerText||'').trim();
+          if (labels.has(t) && !b.classList.contains('open-ranking-btn')) b.remove();
+        });
+      } catch(_) {}
+    };
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', purge, {once:true}); else setTimeout(purge,0);
+    // Hide console noise from any surviving qa-autoboot file
+    window.addEventListener('error', (e)=>{
+      if (String(e?.filename||'').includes('qa-autoboot')) { e.preventDefault?.(); return false; }
+    }, true);
+  } catch(_) {}
+})();
+// <<< END: production lock against QA autoboot <<<
