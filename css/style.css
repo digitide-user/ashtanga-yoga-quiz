@@ -745,3 +745,5 @@ a[style*="position:fixed"], a[style*="position: fixed"],
 div[style*="position:fixed"], div[style*="position: fixed"] {
   display: none !important;
 }
+/* Safety: hide any fixed-position leftovers (QA debug pills etc.) */
+*[style*="position:fixed"], *[style*="position: fixed"] { display: none !important; }

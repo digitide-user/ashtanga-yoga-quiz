@@ -1,7 +1,61 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="utf-8" />
+  <meta charset="UTF-8" />
+  <!-- ===== QA autoboot kill switch (runs before deferred scripts) ===== -->
+  <script>
+    (function () {
+      try {
+        // never allow any QA flag to turn on
+        try { window.QA_AUTOBOOT = false; } catch (_) {}
+        var KWORDS = ["クイズを始める","詳細ランキングを見る"];
+        function isDbg(el){
+          try{
+            if (!el || el.classList?.contains("open-ranking-btn")) return false; // real button is OK
+            var t=(el.textContent||el.innerText||"").trim();
+            return KWORDS.indexOf(t) >= 0;
+          }catch(_){return false;}
+        }
+        function isQaSrc(src){ return /qa-?autoboot|\/qa_|[?&]qa[_-]?/i.test(src||""); }
+        function purge(root){
+          try{
+            (root.querySelectorAll? root.querySelectorAll("script,button,a,div,span"): []).forEach(function(n){
+              if (n.tagName==="SCRIPT" && isQaSrc(n.getAttribute("src"))) n.remove();
+              else if (isDbg(n)) n.remove();
+            });
+          }catch(_){}}
+        // block future injections
+        var _append = Element.prototype.appendChild;
+        Element.prototype.appendChild = function(node){
+          try{
+            if (node && node.tagName==="SCRIPT" && isQaSrc(node.getAttribute("src"))){
+              console.warn("[QA BLOCK] blocked script:", node.src||"");
+              return node;
+            }
+          }catch(_){}
+          return _append.call(this, node);
+        };
+        var mo = new MutationObserver(function(muts){
+          muts.forEach(function(m){
+            m.addedNodes && Array.prototype.forEach.call(m.addedNodes, function(n){
+              try{
+                if (n.nodeType!==1) return;
+                if (n.tagName==="SCRIPT" && isQaSrc(n.getAttribute("src"))) { n.remove(); return; }
+                if (isDbg(n)) { n.remove(); return; }
+                if (n.querySelectorAll) purge(n);
+              }catch(_){}}
+            );
+          });
+        });
+        document.addEventListener("DOMContentLoaded", function(){ purge(document); }, {once:true});
+        mo.observe(document.documentElement, {childList:true, subtree:true});
+        // silence console noise from qa-autoboot files
+        window.addEventListener("error", function(e){
+          if (String(e && e.filename || "").indexOf("qa-autoboot") >= 0){ e.preventDefault && e.preventDefault(); return false; }
+        }, true);
+      } catch (_){}
+    })();
+  </script>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>アシュタンガ ヨガ アーサナクイズ</title>
   <link rel="stylesheet" href="css/style.css?v=20250830-10" />
@@ -41,10 +95,10 @@
   </main>
 
   <!-- 読込順を保証（キャッシュバスター付き） -->
-  <script defer src="js/config.js?v=20250830-17"></script>
-  <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2?v=20250830-17"></script>
-  <script defer src="js/ranking.js?v=20250830-17"></script>
-  <script defer src="js/quiz.js?v=20250830-17"></script>
+  <script defer src="js/config.js?v=20250830-18"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2?v=20250830-18"></script>
+  <script defer src="js/ranking.js?v=20250830-18"></script>
+  <script defer src="js/quiz.js?v=20250830-18"></script>
 </head>
 <body>
   <div id="app">
