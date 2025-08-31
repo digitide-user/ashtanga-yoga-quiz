@@ -2,29 +2,24 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <!-- ===== QA autoboot kill switch (runs before deferred scripts) ===== -->
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>アシュタンガ ヨガ アーサナクイズ</title>
+
+  <!-- ===== QA autoboot kill switch (実行順を最優先) ===== -->
   <script>
     (function () {
       try {
-        // never allow any QA flag to turn on
         try { window.QA_AUTOBOOT = false; } catch (_) {}
         var KWORDS = ["クイズを始める","詳細ランキングを見る"];
         function isDbg(el){
           try{
-            if (!el || el.classList?.contains("open-ranking-btn")) return false; // real button is OK
+            if (!el || el.classList?.contains("open-ranking-btn")) return false; // 本物はOK
             var t=(el.textContent||el.innerText||"").trim();
             return KWORDS.indexOf(t) >= 0;
           }catch(_){return false;}
         }
         function isQaSrc(src){ return /qa-?autoboot|\/qa_|[?&]qa[_-]?/i.test(src||""); }
-        function purge(root){
-          try{
-            (root.querySelectorAll? root.querySelectorAll("script,button,a,div,span"): []).forEach(function(n){
-              if (n.tagName==="SCRIPT" && isQaSrc(n.getAttribute("src"))) n.remove();
-              else if (isDbg(n)) n.remove();
-            });
-          }catch(_){}}
-        // block future injections
+        // 将来の挿入をブロック
         var _append = Element.prototype.appendChild;
         Element.prototype.appendChild = function(node){
           try{
@@ -35,6 +30,15 @@
           }catch(_){}
           return _append.call(this, node);
         };
+        // 既存の残骸を掃除
+        function purge(root){
+          try{
+            (root.querySelectorAll? root.querySelectorAll("script,button,a,div,span"): []).forEach(function(n){
+              if (n.tagName==="SCRIPT" && isQaSrc(n.getAttribute("src"))) n.remove();
+              else if (isDbg(n)) n.remove();
+            });
+          }catch(_){}
+        }
         var mo = new MutationObserver(function(muts){
           muts.forEach(function(m){
             m.addedNodes && Array.prototype.forEach.call(m.addedNodes, function(n){
@@ -43,26 +47,29 @@
                 if (n.tagName==="SCRIPT" && isQaSrc(n.getAttribute("src"))) { n.remove(); return; }
                 if (isDbg(n)) { n.remove(); return; }
                 if (n.querySelectorAll) purge(n);
-              }catch(_){}}
-            );
+              }catch(_){}
+            });
           });
         });
-        document.addEventListener("DOMContentLoaded", function(){ purge(document); }, {once:true});
+        if (document.readyState === "loading") {
+          document.addEventListener("DOMContentLoaded", function(){ purge(document); }, {once:true});
+        } else {
+          purge(document);
+        }
         mo.observe(document.documentElement, {childList:true, subtree:true});
-        // silence console noise from qa-autoboot files
         window.addEventListener("error", function(e){
           if (String(e && e.filename || "").indexOf("qa-autoboot") >= 0){ e.preventDefault && e.preventDefault(); return false; }
         }, true);
       } catch (_){}
     })();
   </script>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>アシュタンガ ヨガ アーサナクイズ</title>
-  <link rel="stylesheet" href="css/style.css?v=20250830-10" />
-  <!-- alias to satisfy legacy path /css/styles.css and avoid MIME warnings -->
-  <link rel="stylesheet" href="css/styles.css?v=20250830-10" />
 
-  <!-- ★ Inline config: FORCE ON -->
+  <!-- Styles -->
+  <link rel="stylesheet" href="css/style.css?v=20250830-19" />
+  <!-- 互換エイリアス（/css/styles.css への旧参照を吸収） -->
+  <link rel="stylesheet" href="css/styles.css?v=20250830-19" />
+
+  <!-- ランキング設定（本番はここで固定） -->
   <script>
     window.ENABLE_ONLINE_RANKING = true;
     window.STRICT_ONLINE_RANKING = true;
@@ -76,39 +83,33 @@
     });
   </script>
 
-  <!-- クイズUIの必須アンカー（元レイアウトに合わせたID） -->
+  <!-- 読込順（defer） -->
+  <script defer src="js/config.js?v=20250830-19"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2?v=20250830-19"></script>
+  <script defer src="js/ranking.js?v=20250830-19"></script>
+  <script defer src="js/quiz.js?v=20250830-19"></script>
+</head>
+
+<body>
+  <noscript>このアプリを利用するにはJavaScriptを有効にしてください。</noscript>
+
+  <!-- クイズUI（※ body 内に配置） -->
   <main id="quiz-app">
     <div id="quiz-container">
       <div id="image-container"></div>
       <div id="options-container"></div>
+
       <div id="result-container" class="hidden">
         <div id="score"></div>
         <div id="reward"></div>
         <div class="actions">
           <button id="restart-btn">もう一度</button>
           <button id="share-instagram-btn">Instagramでシェア</button>
-          <!-- ランキングは結果画面でのみ表示 -->
+          <!-- ランキングは結果画面でのみ表示（初期はCSS/JSで非表示） -->
           <button id="open-ranking-btn" class="open-ranking-btn" style="display:none">詳細ランキングを見る</button>
         </div>
       </div>
     </div>
   </main>
-
-  <!-- 読込順を保証（キャッシュバスター付き） -->
-  <script defer src="js/config.js?v=20250830-18"></script>
-  <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2?v=20250830-18"></script>
-  <script defer src="js/ranking.js?v=20250830-18"></script>
-  <script defer src="js/quiz.js?v=20250830-18"></script>
-</head>
-<body>
-  <div id="app">
-    <!-- 既存のクイズUI -->
-
-    <!-- 結果画面側に必ずこのボタンが存在するようにしておく（重複OK） -->
-    <button id="viewRankingBtn" data-action="open-ranking" class="btn btn-secondary">
-      詳細ランキングを見る
-    </button>
-  </div>
-  
 </body>
 </html>
