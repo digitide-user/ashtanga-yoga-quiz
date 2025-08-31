@@ -417,9 +417,9 @@ function showResult() {
             console.error('rankingSystem is not available!');
         }
         console.log('=== RANKING PROCESS COMPLETE ===');
-        // 結果画面でのみランキングボタンを見せる
+        // 結果画面でのみランキングボタンを表示
         const openBtn = document.getElementById('open-ranking-btn') || $('[data-role="open-ranking"]');
-        if (openBtn) openBtn.style.display = '';
+        if (openBtn) show(openBtn);
     }, 1500);
 
     // [RANK PATCH] --- begin (do not duplicate) ---
