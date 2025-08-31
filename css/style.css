@@ -739,3 +739,9 @@ h1 .small-title {
 button[style*="position: fixed"], button[style*="position:fixed"] { display: none !important; }
 /* Ensure ranking button inside result screen stays hidden until JS shows it */
 .open-ranking-btn { display: none; }
+/* QAデバッグ残骸の保険：固定配置の細いボタンを非表示（本番UIには該当しない想定） */
+button[style*="position:fixed"], button[style*="position: fixed"],
+a[style*="position:fixed"], a[style*="position: fixed"],
+div[style*="position:fixed"], div[style*="position: fixed"] {
+  display: none !important;
+}

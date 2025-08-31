@@ -1,3 +1,66 @@
+// ===== Production Guard: block any QA/autoboot leftovers (hard) =====
+;(() => {
+  try {
+    // 明示的に無効化
+    try { window.QA_AUTOBOOT = false } catch {}
+
+    const isQaSrc = (src) => /qa-?autoboot|\/qa_|[?&]qa[_-]?/i.test(src || "");
+    const isDebugButton = (el) => {
+      if (!el) return false;
+      const txt = (el.textContent || el.innerText || "").trim();
+      if (el.classList?.contains('open-ranking-btn')) return false; // 本物は残す
+      return (
+        txt === 'クイズを始める' ||
+        txt === '詳細ランキングを見る'
+      );
+    };
+
+    // 既存の残骸を片付け
+    const purge = () => {
+      try {
+        document.querySelectorAll('script').forEach(s => {
+          const src = s.getAttribute('src') || "";
+          if (isQaSrc(src)) s.remove();
+        });
+        document.querySelectorAll('button, a, div').forEach(n => {
+          if (isDebugButton(n)) n.remove();
+        });
+      } catch {}
+    };
+
+    // 将来の再挿入を監視して即ブロック
+    const mo = new MutationObserver((recs) => {
+      for (const r of recs) {
+        for (const n of r.addedNodes) {
+          try {
+            if (n.nodeType !== 1) continue;
+            if (n.tagName === 'SCRIPT' && isQaSrc(n.getAttribute('src'))) { n.remove(); continue; }
+            if (isDebugButton(n)) { n.remove(); continue; }
+            // 子孫にも残骸がないか軽くチェック
+            if (n.querySelectorAll) {
+              n.querySelectorAll('script,button,a,div').forEach(m => {
+                if (m.tagName === 'SCRIPT' && isQaSrc(m.getAttribute('src'))) m.remove();
+                else if (isDebugButton(m)) m.remove();
+              });
+            }
+          } catch {}
+        }
+      }
+    });
+    if (document.body) mo.observe(document.body, { childList: true, subtree: true });
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', purge, { once: true });
+    } else {
+      purge();
+    }
+
+    // qa-autoboot 由来のエラーのノイズは握りつぶす
+    window.addEventListener('error', (e) => {
+      if (isQaSrc(e?.filename || "")) { e.preventDefault?.(); return false; }
+    }, true);
+  } catch {}
+})();
+
 (function () {
   console.log('[RANK] ranking.js loaded (supabase)');
 
