@@ -273,3 +273,34 @@ if (typeof window !== "undefined") {
   } catch(_) {}
 })();
 // <<< END: production lock against QA autoboot <<<
+
+// === expose Supabase ranking API to window.rankingSystem (append-only) ===
+(() => {
+  const sb = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
+
+  // define getTop if missing
+  async function getTop(limit = (window.RANKING_TOP_LIMIT || 10)) {
+    const { data, error } = await sb
+      .from('scores')
+      .select('name, score, total_questions, percentage, time_spent, created_at')
+      .order('percentage', { ascending: false })
+      .order('time_spent', { ascending: true })
+      .order('created_at', { ascending: false })
+      .limit(limit);
+    if (error) throw error;
+    console.log('[RANK] GET ok:', data?.length ?? 0);
+    return data ?? [];
+  }
+
+  // keep existing submitScore if already defined; otherwise define it
+  const submitScore =
+    (window.rankingSystem && window.rankingSystem.submitScore) ||
+    (async function submitScore({ name, score, total_questions, time_spent }) {
+      const { error } = await sb.from('scores').insert([{ name, score, total_questions, time_spent }]);
+      if (error) throw error;
+      console.log('[RANK] POST ok');
+      return true;
+    });
+
+  window.rankingSystem = Object.assign({}, window.rankingSystem, { getTop, submitScore });
+})();
