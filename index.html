@@ -22,11 +22,29 @@
     });
   </script>
 
+  <!-- クイズUIの必須アンカー（元レイアウトに合わせたID） -->
+  <main id="quiz-app">
+    <div id="quiz-container">
+      <div id="image-container"></div>
+      <div id="options-container"></div>
+      <div id="result-container" class="hidden">
+        <div id="score"></div>
+        <div id="reward"></div>
+        <div class="actions">
+          <button id="restart-btn">もう一度</button>
+          <button id="share-instagram-btn">Instagramでシェア</button>
+          <!-- ランキングは結果画面でのみ表示 -->
+          <button id="open-ranking-btn" class="open-ranking-btn" style="display:none">詳細ランキングを見る</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
   <!-- 読込順を保証（キャッシュバスター付き） -->
-  <script defer src="js/config.js?v=20250830-12"></script>
-  <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2?v=20250830-12"></script>
-  <script defer src="js/ranking.js?v=20250830-12"></script>
-  <script defer src="js/quiz.js?v=20250830-12"></script>
+  <script defer src="js/config.js?v=20250830-13"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2?v=20250830-13"></script>
+  <script defer src="js/ranking.js?v=20250830-13"></script>
+  <script defer src="js/quiz.js?v=20250830-13"></script>
 </head>
 <body>
   <div id="app">

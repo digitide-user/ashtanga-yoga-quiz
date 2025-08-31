@@ -417,6 +417,9 @@ function showResult() {
             console.error('rankingSystem is not available!');
         }
         console.log('=== RANKING PROCESS COMPLETE ===');
+        // 結果画面でのみランキングボタンを見せる
+        const openBtn = document.getElementById('open-ranking-btn') || $('[data-role="open-ranking"]');
+        if (openBtn) openBtn.style.display = '';
     }, 1500);
 
     // [RANK PATCH] --- begin (do not duplicate) ---
@@ -443,6 +446,11 @@ function showResult() {
     // [RANK PATCH] --- end ---
 }
 
+// 便利ヘルパー
+function $(sel){ return document.querySelector(sel); }
+function show(el){ if(el) el.style.display=''; }
+function hide(el){ if(el) el.style.display='none'; }
+
 const __handleRestart = () => {
   // リスタート時にもボタン状態を完全リセット
   try { resetAllButtonStates && resetAllButtonStates(); } catch(e) { console.warn('[QUIZ] resetAllButtonStates unavailable', e); }
@@ -453,37 +461,24 @@ const __handleRestart = () => {
 };
 
 // 既存のボタンがあればバインド。無ければ何もしない（自動注入しない）
-let __restartBtn = (typeof restartBtn !== 'undefined' ? restartBtn : null)
-                || document.getElementById('restart-btn')
-                || document.getElementById('restartBtn')
-                || document.querySelector('[data-role="restart"]');
-if (__restartBtn && __restartBtn.addEventListener) {
-  __restartBtn.addEventListener('click', __handleRestart);
-} else {
-  console.warn('[QUIZ] restart button not found at boot; will wait for it to exist');
-  document.addEventListener('click', (e) => {
-    const t = e.target;
-    if (t && (t.id === 'restart-btn' || t.id === 'restartBtn' || (t.matches && t.matches('[data-role="restart"]')))) {
-      __handleRestart();
-    }
+(() => {
+  const r = document.getElementById('restart-btn') || document.getElementById('restartBtn') || $('[data-role="restart"]');
+  if (r && r.addEventListener) r.addEventListener('click', __handleRestart);
+})();
+
+// （念のため）開始ボタン/シェアボタンもガード
+(() => {
+  const s = document.getElementById('start-btn') || $('[data-role="start-quiz"]');
+  if (s && s.addEventListener) s.addEventListener('click', () => {
+    try { typeof initQuiz==='function' ? initQuiz() : (window.quiz&&window.quiz.init&&window.quiz.init()); } catch(e){ console.error(e); }
   });
-}
+  const share = document.getElementById('share-instagram-btn') || $('[data-role="share-instagram"]');
+  if (share && share.addEventListener) share.addEventListener('click', () => {
+    try { window.open('https://www.instagram.com/', '_blank'); } catch(e){}
+  });
+})();
 
-shareInstagramBtn.addEventListener('click', () => {
-    // IMPORTANT: Replace 'https://example.com/your-game-url' with the actual URL where your game is hosted online.
-    // const gameUrl = 'https://example.com/your-game-url'; 
-
-    // IMPORTANT: Replace 'https://example.com/your-share-image.png' with a publicly accessible URL
-    // of the image you want to share on Instagram Stories.
-    // This could be the Shiva background image, or a custom image you create for sharing results.
-    // const imageUrl = 'https://example.com/your-share-image.png'; 
-
-    // Instagram Stories share URL (deep link)
-    // 'source_application' is typically an app ID, but for web, it can be a generic identifier.
-    const instagramShareUrl = `instagram-stories://share?source_application=web.ashtanga.quiz&content_url=${encodeURIComponent(imageUrl)}&link=${encodeURIComponent(gameUrl)}`;
-
-    window.location.href = instagramShareUrl;
-});
+// share button binding moved to guarded block above
 
 // 最初のクイズをセットアップして読み込む
 setupQuiz();

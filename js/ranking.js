@@ -30,10 +30,13 @@
       }).catch(err=>console.error('[RANK QA] forced insert fail', err));
     } catch(e) { console.warn('[RANK QA] force insert guard error', e); }
   }
-  if (document.readyState === 'loading') {
-    window.addEventListener('DOMContentLoaded', ()=>setTimeout(qaForceInsert, 150));
-  } else {
-    setTimeout(qaForceInsert, 0);
+  // QA autoboot disabled by default
+  if (window.QA_AUTOBOOT) {
+    if (document.readyState === 'loading') {
+      window.addEventListener('DOMContentLoaded', ()=>setTimeout(qaForceInsert, 150));
+    } else {
+      setTimeout(qaForceInsert, 0);
+    }
   }
 
   // Fallbacks if inline config was stripped by cache/CDN
@@ -176,43 +179,45 @@
   };
 
   // --- [RANK QA] 強制INSERT（?qa_insert=1 が付いていると1件だけサンプルを挿入） ---
-  try {
-    var __qa = new URLSearchParams(location.search).get('qa_insert');
-    if (__qa === '1') {
-      if (!window.rankingSystem) window.rankingSystem = {};
-      if (typeof window.rankingSystem.submitScore !== 'function') {
-        window.rankingSystem.submitScore = async function(entry){
-          const base = (window.SUPABASE_URL||'').replace(/\/$,'');
-          const url  = base + '/rest/v1/scores';
-          const payload = [{
-            name: entry?.name || 'QA Bot',
-            score: Number(entry?.score || 8),
-            total_questions: Number(entry?.totalQuestions || 10),
-            percentage: Number(entry?.percentage || 80),
-            time_spent: Number(entry?.timeSpent || 30)
-          }];
-          const res = await fetch(url, {
-            method:'POST',
-            headers:{
-              'Content-Type':'application/json',
-              'Prefer':'return=representation',
-              apikey: window.SUPABASE_ANON_KEY,
-              Authorization: `Bearer ${window.SUPABASE_ANON_KEY}`
-            },
-            body: JSON.stringify(payload)
-          });
-          console.log(`[QA] CAPTURE POST ${res.status} ${url}`);
-          if (!res.ok) throw new Error('insert failed ' + res.status);
-          return (await res.json())[0];
-        };
+  if (window.QA_AUTOBOOT) {
+    try {
+      var __qa = new URLSearchParams(location.search).get('qa_insert');
+      if (__qa === '1') {
+        if (!window.rankingSystem) window.rankingSystem = {};
+        if (typeof window.rankingSystem.submitScore !== 'function') {
+          window.rankingSystem.submitScore = async function(entry){
+            const base = (window.SUPABASE_URL||'').replace(/\/$,'');
+            const url  = base + '/rest/v1/scores';
+            const payload = [{
+              name: entry?.name || 'QA Bot',
+              score: Number(entry?.score || 8),
+              total_questions: Number(entry?.totalQuestions || 10),
+              percentage: Number(entry?.percentage || 80),
+              time_spent: Number(entry?.timeSpent || 30)
+            }];
+            const res = await fetch(url, {
+              method:'POST',
+              headers:{
+                'Content-Type':'application/json',
+                'Prefer':'return=representation',
+                apikey: window.SUPABASE_ANON_KEY,
+                Authorization: `Bearer ${window.SUPABASE_ANON_KEY}`
+              },
+              body: JSON.stringify(payload)
+            });
+            console.log(`[QA] CAPTURE POST ${res.status} ${url}`);
+            if (!res.ok) throw new Error('insert failed ' + res.status);
+            return (await res.json())[0];
+          };
+        }
+        if (!window.__QA_INSERT_DONE__) {
+          window.__QA_INSERT_DONE__ = true;
+          window.rankingSystem.submitScore({
+            name:'QA Bot', score:8, totalQuestions:10, percentage:80, timeSpent:30
+          }).then(d=>console.log('[RANK QA] forced insert ok', d?.id))
+            .catch(e=>console.error('[RANK QA] forced insert fail', e));
+        }
       }
-      if (!window.__QA_INSERT_DONE__) {
-        window.__QA_INSERT_DONE__ = true;
-        window.rankingSystem.submitScore({
-          name:'QA Bot', score:8, totalQuestions:10, percentage:80, timeSpent:30
-        }).then(d=>console.log('[RANK QA] forced insert ok', d?.id))
-          .catch(e=>console.error('[RANK QA] forced insert fail', e));
-      }
-    }
-  } catch(e) { console.warn('[RANK QA] force insert guard error', e); }
+    } catch(e) { console.warn('[RANK QA] force insert guard error', e); }
+  }
 })();
