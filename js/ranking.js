@@ -1,43 +1,8 @@
 (function () {
   console.log('[RANK] ranking.js loaded (supabase)');
 
-  // --- [RANK QA] 強制INSERT（?qa_insert=1 で発火。POSTを必ず1本記録する） ---
-  function qaForceInsert(){
-    try {
-      const q = new URLSearchParams(location.search);
-      if (q.get('qa_insert') !== '1') return;
-      const base = (window.SUPABASE_URL || '').replace(/\/$/, '');
-      const key  = window.SUPABASE_ANON_KEY;
-      if (!base || !key) { console.warn('[RANK QA] missing supabase config'); return; }
-      if (window.__QA_INSERT_DONE__) return;
-      window.__QA_INSERT_DONE__ = true;
-      const url = base + '/rest/v1/scores';
-      const body = [{ name:'QA Bot', score:8, total_questions:10, percentage:80, time_spent:30 }];
-      fetch(url, {
-        method:'POST',
-        headers:{
-          'Content-Type':'application/json',
-          'Prefer':'return=representation',
-          'apikey': key,
-          'Authorization': `Bearer ${key}`
-        },
-        body: JSON.stringify(body)
-      }).then(res=>{
-        console.log(`[QA] CAPTURE POST ${res.status} ${url}`);
-        return res.json().catch(()=>null);
-      }).then(json=>{
-        if (json && json[0]) console.log('[RANK QA] forced insert ok', json[0].id || json[0]);
-      }).catch(err=>console.error('[RANK QA] forced insert fail', err));
-    } catch(e) { console.warn('[RANK QA] force insert guard error', e); }
-  }
-  // QA autoboot disabled by default
-  if (window.QA_AUTOBOOT) {
-    if (document.readyState === 'loading') {
-      window.addEventListener('DOMContentLoaded', ()=>setTimeout(qaForceInsert, 150));
-    } else {
-      setTimeout(qaForceInsert, 0);
-    }
-  }
+  // 本番安定化: QA autoboot は常に無効
+  try { window.QA_AUTOBOOT = false; } catch(_) {}
 
   // Fallbacks if inline config was stripped by cache/CDN
   window.ENABLE_ONLINE_RANKING ??= true;
@@ -119,7 +84,7 @@
     };
 
     const bind = () => {
-      const btn = document.querySelector('#viewRankingBtn,[data-action="open-ranking"]');
+      const btn = document.querySelector('#open-ranking-btn,[data-role="open-ranking"]');
       if (btn && !btn.dataset.rankingBound) {
         btn.dataset.rankingBound = '1';
         btn.addEventListener('click', () => window.rankingSystem.open('allTime', 50));
@@ -178,46 +143,5 @@
     }
   };
 
-  // --- [RANK QA] 強制INSERT（?qa_insert=1 が付いていると1件だけサンプルを挿入） ---
-  if (window.QA_AUTOBOOT) {
-    try {
-      var __qa = new URLSearchParams(location.search).get('qa_insert');
-      if (__qa === '1') {
-        if (!window.rankingSystem) window.rankingSystem = {};
-        if (typeof window.rankingSystem.submitScore !== 'function') {
-          window.rankingSystem.submitScore = async function(entry){
-            const base = (window.SUPABASE_URL||'').replace(/\/$,'');
-            const url  = base + '/rest/v1/scores';
-            const payload = [{
-              name: entry?.name || 'QA Bot',
-              score: Number(entry?.score || 8),
-              total_questions: Number(entry?.totalQuestions || 10),
-              percentage: Number(entry?.percentage || 80),
-              time_spent: Number(entry?.timeSpent || 30)
-            }];
-            const res = await fetch(url, {
-              method:'POST',
-              headers:{
-                'Content-Type':'application/json',
-                'Prefer':'return=representation',
-                apikey: window.SUPABASE_ANON_KEY,
-                Authorization: `Bearer ${window.SUPABASE_ANON_KEY}`
-              },
-              body: JSON.stringify(payload)
-            });
-            console.log(`[QA] CAPTURE POST ${res.status} ${url}`);
-            if (!res.ok) throw new Error('insert failed ' + res.status);
-            return (await res.json())[0];
-          };
-        }
-        if (!window.__QA_INSERT_DONE__) {
-          window.__QA_INSERT_DONE__ = true;
-          window.rankingSystem.submitScore({
-            name:'QA Bot', score:8, totalQuestions:10, percentage:80, timeSpent:30
-          }).then(d=>console.log('[RANK QA] forced insert ok', d?.id))
-            .catch(e=>console.error('[RANK QA] forced insert fail', e));
-        }
-      }
-    } catch(e) { console.warn('[RANK QA] force insert guard error', e); }
-  }
+  // QA 強制挿入は完全無効化（本番安定化）
 })();

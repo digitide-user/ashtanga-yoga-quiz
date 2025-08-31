@@ -100,6 +100,13 @@ h1 .small-title {
     display: none;
 }
 
+/* デフォルトで開始/ランキングボタンは非表示（結果時にJSで表示） */
+#start-btn,
+#open-ranking-btn,
+.open-ranking-btn {
+    display: none;
+}
+
 #restart-btn {
     background-color: #6272a4; /* 落ち着いたティール */
     color: #f8f8f2;
