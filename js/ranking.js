@@ -145,3 +145,32 @@
 
   // QA 強制挿入は完全無効化（本番安定化）
 })();
+// ===== Production hardening for QA leftovers =====
+// 1) Never allow QA autoboot in production
+try { window.QA_AUTOBOOT = false; } catch (_) {}
+// 2) Remove any debug buttons that QA may have injected (Japanese labels)
+function __cleanupQaButtons() {
+  try {
+    const labels = new Set(["クイズを始める", "詳細ランキングを見る"]);
+    document.querySelectorAll('button').forEach(b => {
+      const t = (b.textContent || b.innerText || "").trim();
+      if (labels.has(t)) b.remove();
+    });
+  } catch (_) {}
+}
+if (typeof window !== "undefined") {
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", __cleanupQaButtons, { once:true });
+  } else {
+    setTimeout(__cleanupQaButtons, 0);
+  }
+  // 3) Ignore errors bubbling from any qa-autoboot bundle/chunk
+  window.addEventListener("error", function(e){
+    try {
+      if (String(e?.filename || "").includes("qa-autoboot")) {
+        e.preventDefault?.();
+        return false;
+      }
+    } catch(_) {}
+  }, true);
+}

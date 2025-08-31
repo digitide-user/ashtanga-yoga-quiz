@@ -735,3 +735,7 @@ h1 .small-title {
     }
 }
 }
+/* Hide any fixed-position debug buttons (QA leftovers) without affecting main UI */
+button[style*="position: fixed"], button[style*="position:fixed"] { display: none !important; }
+/* Ensure ranking button inside result screen stays hidden until JS shows it */
+.open-ranking-btn { display: none; }
