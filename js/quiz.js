@@ -422,28 +422,45 @@ function showResult() {
         if (openBtn) show(openBtn);
     }, 1500);
 
-    // [RANK PATCH] --- begin (do not duplicate) ---
-    try {
-      const userName = (localStorage.getItem('yogaquiz_username') || '').trim() || '匿名';
-      // 利用可能な変数から安全に推定
-      const s  = (typeof finalScore !== 'undefined' ? finalScore : (window.__lastScore || window.score || 0));
-      const tq = (typeof totalQuestions !== 'undefined' ? totalQuestions : (window.__totalQuestions || 10));
-      const entry = {
-        name: userName,
-        score: Number(s || 0),
-        totalQuestions: Number(tq || 10),
-        percentage: Math.round((Number(s||0) / Math.max(1, Number(tq||10))) * 100),
-        timeSpent: Number(window.__timeSpentSec || window.timeSpentSec || 0)
-      };
-      if (window.rankingSystem && typeof window.rankingSystem.submitScore === 'function' && !window.rankingSystem.__submittedOnce) {
-        window.rankingSystem.submitScore(entry).catch(console.error);
-      } else {
-        console.warn('[RANK] submitScore not available or already submitted');
+    // === QUIZ COMPLETE → スコア送信 & 結果表示（必ずUIを出す） ===
+    (async () => {
+      try {
+        const _score = (typeof score !== 'undefined') ? score : (window.latestScore ?? 0);
+        const _totalQs = (typeof totalQuestions !== 'undefined')
+          ? totalQuestions
+          : (typeof questions !== 'undefined' && Array.isArray(questions) ? questions.length : 10);
+        const _timeSpent = (typeof timeSpent !== 'undefined') ? timeSpent
+          : (typeof totalTimeSpent !== 'undefined') ? totalTimeSpent
+          : (window.totalTimeSpent ?? 0);
+        const _name = (typeof playerName !== 'undefined' && playerName) ? playerName : 'Guest';
+
+        if (window.rankingSystem && typeof window.rankingSystem.submitScore === 'function') {
+          await window.rankingSystem.submitScore({
+            name: _name,
+            score: _score,
+            total_questions: _totalQs,
+            time_spent: _timeSpent,
+          });
+          console.log('[RANK] POST ok');
+        } else {
+          console.warn('[RANK] submitScore not available; skip sending');
+        }
+      } catch (e) {
+        console.warn('[RANK] POST failed but continue:', e);
+      } finally {
+        // 結果UIは必ず出す
+        try {
+          const resultContainer = document.getElementById('result-container');
+          const quizContainer = document.getElementById('quiz-container');
+          if (resultContainer && quizContainer) {
+            resultContainer.classList.remove('hidden');
+            quizContainer.classList.add('hidden');
+          }
+          const btn = document.getElementById('open-ranking-btn');
+          if (btn && btn.style) btn.style.display = 'inline-block';
+        } catch (_) {}
       }
-    } catch (e) {
-      console.error('[RANK] submit hook error', e);
-    }
-    // [RANK PATCH] --- end ---
+    })();
 }
 
 // 便利ヘルパー

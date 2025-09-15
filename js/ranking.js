@@ -55,3 +55,45 @@ window.rankingSystem = Object.assign({}, window.rankingSystem, {
   submitScore,
   addScore,
 });
+
+// --- Safe wrapper to ensure API exposure (keeps existing if present) ---
+(function ensureRankingAPI(){
+  try {
+    const sb = (window.supabase && window.SUPABASE_URL && window.SUPABASE_ANON_KEY)
+      ? window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY)
+      : null;
+
+    if (typeof window.getTop !== 'function') {
+      window.getTop = async function getTop(limit = (window.RANKING_TOP_LIMIT || 10)) {
+        if (!sb) throw new Error('supabase client not ready');
+        const { data, error } = await sb
+          .from('scores')
+          .select('name, score, total_questions, percentage, time_spent, created_at')
+          .order('percentage', { ascending: false })
+          .order('time_spent', { ascending: true })
+          .order('created_at', { ascending: false })
+          .limit(limit);
+        if (error) throw error;
+        console.log('[RANK] GET ok:', data?.length ?? 0);
+        return data ?? [];
+      };
+    }
+
+    if (typeof window.submitScore !== 'function') {
+      window.submitScore = async function submitScore({ name, score, total_questions, time_spent }) {
+        if (!sb) throw new Error('supabase client not ready');
+        const { error } = await sb.from('scores').insert([{ name, score, total_questions, time_spent }]);
+        if (error) throw error;
+        console.log('[RANK] POST ok (ranking.js)');
+        return true;
+      };
+    }
+
+    window.rankingSystem = Object.assign({}, window.rankingSystem, {
+      getTop: window.getTop,
+      submitScore: window.submitScore,
+    });
+  } catch (e) {
+    console.warn('[RANK] expose API skipped:', e);
+  }
+})();
