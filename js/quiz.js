@@ -958,10 +958,13 @@ try {
         btn.textContent = '詳細ランキングを見る';
         result.appendChild(btn);
       }
+      // ensure class for allow-listing in kill-switch
+      try { btn.classList.add('open-ranking-btn'); } catch(_) {}
       btn.style.setProperty('display', 'inline-block', 'important');
       // reset listeners safely by cloning
       btn.replaceWith(btn.cloneNode(true));
       btn = document.getElementById('open-ranking-btn');
+      try { btn.classList.add('open-ranking-btn'); } catch(_) {}
       btn.addEventListener('click', openRankingModal, { once:false });
     }
   };
