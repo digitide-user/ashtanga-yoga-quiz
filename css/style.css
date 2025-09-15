@@ -97,7 +97,7 @@ h1 .small-title {
 }
 
 .hidden {
-    display: none;
+    display: none !important;
 }
 
 /* デフォルトで開始/ランキングボタンは非表示（結果時にJSで表示） */
@@ -198,6 +198,9 @@ h1 .small-title {
         font-size: 0.8rem;
     }
 }
+
+/* Ensure result container is visible when shown */
+#result-container { display: block; }
 
 /* iPhone Safari用の軽量ボタンリセット */
 .choice-btn:not(:hover):not(:active):not(:focus) {

@@ -459,6 +459,13 @@ function showResult() {
           const btn = document.getElementById('open-ranking-btn');
           if (btn && btn.style) btn.style.display = 'inline-block';
         } catch (_) {}
+        // 再度安全に結果UIを構築・表示（冪等）
+        try {
+          const totalQs = (typeof totalQuestions !== 'undefined') ? totalQuestions : (Array.isArray(questions) ? questions.length : 10);
+          const tSpent  = (typeof timeSpent !== 'undefined') ? timeSpent : (typeof totalTimeSpent !== 'undefined' ? totalTimeSpent : 0);
+          const sc      = (typeof score !== 'undefined') ? score : (window.latestScore ?? 0);
+          window.showResultsUI?.({ score: sc, totalTimeSpent: tSpent, totalQuestions: totalQs });
+        } catch(_) {}
       }
     })();
 }
@@ -851,3 +858,111 @@ try {
     if (typeof window.quiz.init !== 'function') window.quiz.init = initQuiz;
   }
 } catch (e) {}
+
+// --- Ensure Results UI and Ranking Modal (idempotent) ---
+(function ensureResultsUI(){
+  if (window.__resultsUiPatched) return;
+  window.__resultsUiPatched = true;
+
+  function ensureRankingModal() {
+    const old = document.getElementById('rank-modal-overlay');
+    if (old) old.remove();
+
+    const ov = document.createElement('div');
+    ov.id = 'rank-modal-overlay';
+    ov.style.cssText = 'position:fixed;inset:0;z-index:2147483600;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center';
+    const card = document.createElement('div');
+    card.style.cssText = 'background:#fff;color:#111;width:min(640px,92vw);max-height:80vh;overflow:auto;border-radius:12px;box-shadow:0 12px 36px rgba(0,0,0,.5)';
+    card.innerHTML = `
+      <div style="padding:14px 18px;font-weight:700;border-bottom:1px solid #eee">ランキング上位</div>
+      <div id="rank-body" style="padding:8px 12px">読み込み中…</div>
+      <div style="padding:12px;text-align:right;border-top:1px solid #eee">
+        <button id="rank-close" style="padding:8px 12px;border-radius:8px;border:1px solid #ccc;background:#fff;cursor:pointer">閉じる</button>
+      </div>`;
+    ov.appendChild(card);
+    document.body.appendChild(ov);
+
+    document.getElementById('rank-close').onclick = () => ov.remove();
+
+    return {
+      setRows(rows) {
+        const body = document.getElementById('rank-body');
+        if (!rows || !rows.length) {
+          body.innerHTML = `<div style="padding:20px;text-align:center;color:#666">データがありません</div>`;
+          return;
+        }
+        body.innerHTML = `
+          <table style="width:100%;border-collapse:collapse">
+            <thead>
+              <tr>
+                <th style="text-align:left;padding:10px;border-bottom:1px solid #eee">名前</th>
+                <th style="width:90px;padding:10px;border-bottom:1px solid #eee">得点</th>
+                <th style="width:120px;padding:10px;border-bottom:1px solid #eee">正答率</th>
+                <th style="width:100px;padding:10px;border-bottom:1px solid #eee">時間(秒)</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rows.map(r=>`
+                <tr>
+                  <td style="padding:10px;border-bottom:1px solid #f3f3f3">${(r.name ?? '—')}</td>
+                  <td style="text-align:center;padding:10px;border-bottom:1px solid #f3f3f3">${r.score ?? ''}</td>
+                  <td style="text-align:center;padding:10px;border-bottom:1px solid #f3f3f3">${Math.round(Number(r.percentage ?? 0))}%</td>
+                  <td style="text-align:center;padding:10px;border-bottom:1px solid #f3f3f3">${r.time_spent ?? ''}</td>
+                </tr>`).join('')}
+            </tbody>
+          </table>`;
+      }
+    };
+  }
+
+  async function openRankingModal() {
+    const modal = ensureRankingModal();
+    try {
+      const api = window.rankingSystem;
+      const rows = (api && typeof api.getTop === 'function') ? await api.getTop(10) : [];
+      modal.setRows(rows);
+    } catch (e) {
+      console.warn('[RANK] getTop failed', e);
+      modal.setRows([]);
+    }
+  }
+
+  window.showResultsUI = function showResultsUI({ score, totalTimeSpent, totalQuestions }) {
+    const result = document.getElementById('result-container');
+    const quiz = document.getElementById('quiz-container');
+
+    if (quiz) quiz.classList.add('hidden');
+
+    if (result) {
+      result.classList.remove('hidden');
+      result.style.setProperty('display', 'block', 'important');
+      result.style.setProperty('visibility', 'visible', 'important');
+      result.style.setProperty('opacity', '1', 'important');
+
+      const scoreEl = document.getElementById('score');
+      if (scoreEl) {
+        const tq = (typeof totalQuestions === 'number') ? totalQuestions : (window.questions?.length ?? 10);
+        const sc = (typeof score === 'number') ? score : (window.latestScore ?? 0);
+        scoreEl.textContent = `${sc} / ${tq}`;
+      }
+      const rewardEl = document.getElementById('reward');
+      if (rewardEl && typeof score === 'number') {
+        const tq = (typeof totalQuestions === 'number') ? totalQuestions : (window.questions?.length ?? 10);
+        rewardEl.textContent = (score === tq) ? '全問正解！' : 'おつかれさま！';
+      }
+
+      let btn = document.getElementById('open-ranking-btn');
+      if (!btn) {
+        btn = document.createElement('button');
+        btn.id = 'open-ranking-btn';
+        btn.textContent = '詳細ランキングを見る';
+        result.appendChild(btn);
+      }
+      btn.style.setProperty('display', 'inline-block', 'important');
+      // reset listeners safely by cloning
+      btn.replaceWith(btn.cloneNode(true));
+      btn = document.getElementById('open-ranking-btn');
+      btn.addEventListener('click', openRankingModal, { once:false });
+    }
+  };
+})();
