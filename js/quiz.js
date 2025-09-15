@@ -960,6 +960,11 @@ try {
       }
       // ensure class for allow-listing in kill-switch
       try { btn.classList.add('open-ranking-btn'); } catch(_) {}
+      // if inline style had display:none, clear it first
+      try {
+        const raw = btn.getAttribute && btn.getAttribute('style');
+        if (raw && /display\s*:\s*none/i.test(raw)) btn.style.removeProperty('display');
+      } catch(_) {}
       btn.style.setProperty('display', 'inline-block', 'important');
       // reset listeners safely by cloning
       btn.replaceWith(btn.cloneNode(true));
