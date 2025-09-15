@@ -33,6 +33,11 @@ async function getTop(limit = window.RANKING_TOP_LIMIT || 10) {
 // --- POST: スコア送信（本来の公開API）---
 async function submitScore({ name, score, total_questions, time_spent }) {
   if (!ready()) return false;
+  try {
+    name = (typeof name === 'string' && name.trim()) ||
+           (localStorage.getItem('yogaquiz_name') || localStorage.getItem('yogaquiz_username') || '').trim() ||
+           'ゲスト';
+  } catch (_) {}
   const { error } = await __SB__
     .from("scores")
     .insert([{ name, score, total_questions, time_spent }]);
@@ -82,6 +87,11 @@ window.rankingSystem = Object.assign({}, window.rankingSystem, {
     if (typeof window.submitScore !== 'function') {
       window.submitScore = async function submitScore({ name, score, total_questions, time_spent }) {
         if (!sb) throw new Error('supabase client not ready');
+        try {
+          name = (typeof name === 'string' && name.trim()) ||
+                 (localStorage.getItem('yogaquiz_name') || localStorage.getItem('yogaquiz_username') || '').trim() ||
+                 'ゲスト';
+        } catch (_) {}
         const { error } = await sb.from('scores').insert([{ name, score, total_questions, time_spent }]);
         if (error) throw error;
         console.log('[RANK] POST ok (ranking.js)');
