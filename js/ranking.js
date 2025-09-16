@@ -108,38 +108,52 @@ window.rankingSystem = Object.assign({}, window.rankingSystem, {
   }
 })();
 
-// FORCE (safe): keep "詳細ランキングを見る" button visible & clickable (no MutationObserver)
+// FORCE (targeted): keep #open-ranking-btn visible; observe only the button itself
 document.addEventListener('DOMContentLoaded', function () {
-  try {
-    var tries = 0;
-
-    function forceShow() {
-      var btn = document.getElementById('open-ranking-btn');
-      if (!btn) return;
-
-      btn.removeAttribute('hidden');
-      btn.classList.remove('hidden');
+  function show(btn) {
+    if (!btn) return;
+    btn.removeAttribute('hidden');
+    btn.classList && btn.classList.remove('hidden', 'invisible');
+    if (btn.style) {
       btn.style.setProperty('display', 'inline-flex', 'important');
       btn.style.setProperty('visibility', 'visible', 'important');
       btn.style.setProperty('opacity', '1', 'important');
-
-      if (!btn.dataset.bound) {
-        btn.addEventListener('click', function (e) {
-          e.preventDefault();
-          if (typeof openRankingOverlay === 'function') openRankingOverlay();
-        }, { passive: false });
-        btn.dataset.bound = '1';
-      }
     }
-
-    // 初回＋短時間の再適用で“消されても押し返す”
-    forceShow();
-    var interval = setInterval(function () {
-      forceShow();
-      if (++tries >= 20) clearInterval(interval); // 約6秒で停止
-    }, 300);
-  } catch (err) {
-    // fail-open（ここで落ちないように握りつぶす）
+    if (!btn.dataset.bound) {
+      btn.addEventListener('click', function (e) {
+        e.preventDefault();
+        if (typeof openRankingOverlay === 'function') openRankingOverlay();
+      }, { passive: false });
+      btn.dataset.bound = '1';
+    }
   }
-});
 
+  function attachObserver(btn) {
+    try {
+      // 1) ボタン自身の属性変化（hidden/style/class）を監視して即座に可視化
+      const moBtn = new MutationObserver(() => show(btn));
+      moBtn.observe(btn, { attributes: true, attributeFilter: ['hidden', 'style', 'class'] });
+
+      // 2) 親直下での付け外しにも追従（再挿入時に再show）
+      if (btn.parentNode) {
+        const moParent = new MutationObserver(() => {
+          const b = document.getElementById('open-ranking-btn');
+          if (b) show(b);
+        });
+        moParent.observe(btn.parentNode, { childList: true, subtree: false });
+      }
+    } catch (e) { /* fail-open */ }
+  }
+
+  // ボタンが後から生成されるケースに備えて、一定時間だけ探索
+  var tries = 0;
+  var finder = setInterval(function () {
+    var btn = document.getElementById('open-ranking-btn');
+    if (btn) {
+      clearInterval(finder);
+      show(btn);
+      attachObserver(btn);
+    }
+    if (++tries > 60) clearInterval(finder); // 最大約60秒探索
+  }, 1000);
+});
