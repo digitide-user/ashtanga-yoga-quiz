@@ -108,33 +108,38 @@ window.rankingSystem = Object.assign({}, window.rankingSystem, {
   }
 })();
 
-// FORCE: keep "詳細ランキングを見る" button visible & clickable (with MutationObserver)
-document.addEventListener('DOMContentLoaded', () => {
-  const forceShow = () => {
-    const btn = document.getElementById('open-ranking-btn');
-    if (!btn) return;
-    btn.removeAttribute('hidden');
-    btn.classList.remove('hidden');
-    btn.style.setProperty('display', 'inline-flex', 'important');
-    btn.style.setProperty('visibility', 'visible', 'important');
-    btn.style.setProperty('opacity', '1', 'important');
+// FORCE (safe): keep "詳細ランキングを見る" button visible & clickable (no MutationObserver)
+document.addEventListener('DOMContentLoaded', function () {
+  try {
+    var tries = 0;
 
-    if (!btn.dataset.bound) {
-      btn.addEventListener('click', (e) => {
-        e.preventDefault();
-        if (typeof openRankingOverlay === 'function') openRankingOverlay();
-      }, { passive: false });
-      btn.dataset.bound = '1';
+    function forceShow() {
+      var btn = document.getElementById('open-ranking-btn');
+      if (!btn) return;
+
+      btn.removeAttribute('hidden');
+      btn.classList.remove('hidden');
+      btn.style.setProperty('display', 'inline-flex', 'important');
+      btn.style.setProperty('visibility', 'visible', 'important');
+      btn.style.setProperty('opacity', '1', 'important');
+
+      if (!btn.dataset.bound) {
+        btn.addEventListener('click', function (e) {
+          e.preventDefault();
+          if (typeof openRankingOverlay === 'function') openRankingOverlay();
+        }, { passive: false });
+        btn.dataset.bound = '1';
+      }
     }
-  };
 
-  // 初回
-  forceShow();
-
-  // DOM変化（class付与/hidden再付与/child変更など）を監視して都度押し返す
-  const mo = new MutationObserver(() => forceShow());
-  mo.observe(document.documentElement, { attributes: true, childList: true, subtree: true });
-
-  // 念のため1秒おきにも再適用（最終保険）
-  setInterval(forceShow, 1000);
+    // 初回＋短時間の再適用で“消されても押し返す”
+    forceShow();
+    var interval = setInterval(function () {
+      forceShow();
+      if (++tries >= 20) clearInterval(interval); // 約6秒で停止
+    }, 300);
+  } catch (err) {
+    // fail-open（ここで落ちないように握りつぶす）
+  }
 });
+
