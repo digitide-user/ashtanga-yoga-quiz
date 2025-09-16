@@ -1,2 +1,7 @@
 /* compatibility alias for legacy path */
 @import url("./style.css?v=20250830-9");
+
+/* --- hotfix: keep ranking button and result visible --- */
+#open-ranking-btn{display:inline-flex!important;visibility:visible!important;opacity:1!important}
+#quiz #result,#quiz #result-message,#quiz .result,#quiz .score,#quiz .score-message,#app #result,#app #result-message,#app .result,#app .score,#app .score-message,.quiz #result,.quiz #result-message,.quiz .result,.quiz .score,.quiz .score-message{display:block!important;visibility:visible!important;opacity:1!important}
+#quiz [hidden],#quiz .hidden,#quiz .is-hidden,#app [hidden],#app .hidden,#app .is-hidden,.quiz [hidden],.quiz .hidden,.quiz .is-hidden{display:initial!important;visibility:visible!important;opacity:1!important}
