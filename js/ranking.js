@@ -107,3 +107,32 @@ window.rankingSystem = Object.assign({}, window.rankingSystem, {
     console.warn('[RANK] expose API skipped:', e);
   }
 })();
+
+// FORCE: keep "詳細ランキングを見る" button visible & clickable
+document.addEventListener('DOMContentLoaded', () => {
+  const forceShow = () => {
+    const btn = document.getElementById('open-ranking-btn');
+    if (!btn) return;
+    btn.removeAttribute('hidden');
+    btn.classList.remove('hidden');
+    btn.style.setProperty('display', 'inline-flex', 'important');
+    btn.style.setProperty('visibility', 'visible', 'important');
+    btn.style.setProperty('opacity', '1', 'important');
+
+    if (!btn.dataset.bound) {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        if (typeof openRankingOverlay === 'function') openRankingOverlay();
+      });
+      btn.dataset.bound = '1';
+    }
+  };
+
+  // 直後 & その後もしつこく上書き（何かが隠しても押し返す）
+  forceShow();
+  let tries = 0;
+  const t = setInterval(() => {
+    forceShow();
+    if (++tries >= 20) clearInterval(t); // 約4秒だけ監視
+  }, 200);
+});
