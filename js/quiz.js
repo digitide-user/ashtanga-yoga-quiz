@@ -977,6 +977,7 @@ try {
         btn.addEventListener('click', openRankingModal, { once:false });
       }
     }
+    try { window.ensureRankingButton && window.ensureRankingButton(); } catch(_) {}
   };
 })();
 
@@ -1046,5 +1047,38 @@ try {
         b.onclick = window.openRankingOverlay;
       }
     });
+  });
+})();
+
+// --- Persistent result button guard and observer ---
+(function persistRankingButton(){
+  // Ensure a single definition
+  window.ensureRankingButton = window.ensureRankingButton || function ensureRankingButton(){
+    const res = document.getElementById('result-container');
+    if (!res) return;
+    let btn = document.getElementById('open-ranking-btn');
+    if (!btn) {
+      btn = document.createElement('button');
+      btn.id = 'open-ranking-btn';
+      btn.className = 'open-ranking-btn';
+      btn.textContent = '詳細ランキングを見る';
+      (res.querySelector('.actions') || res).appendChild(btn);
+    }
+    try { btn.classList.add('open-ranking-btn'); } catch(_) {}
+    btn.style.removeProperty('display');
+    btn.style.setProperty('display','inline-block','important');
+    btn.onclick = (typeof window.openRankingOverlay === 'function') ? window.openRankingOverlay : (btn.onclick || null);
+  };
+
+  document.addEventListener('DOMContentLoaded', function(){
+    // Run once on load
+    try { window.ensureRankingButton(); } catch(_) {}
+    const res = document.getElementById('result-container');
+    if (!res) return;
+    // Observe result container to re-ensure after rerenders
+    const mo = new MutationObserver(function(){
+      try { window.ensureRankingButton(); } catch(_) {}
+    });
+    mo.observe(res, { childList:true, subtree:true });
   });
 })();

@@ -84,10 +84,10 @@
   </script>
 
   <!-- 読込順（defer） -->
-  <script defer src="js/config.js?v=20250916-1"></script>
-  <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2?v=20250916-1"></script>
-  <script defer src="js/ranking.js?v=20250916-1"></script>
-  <script defer src="js/quiz.js?v=20250916-1"></script>
+  <script defer src="js/config.js?v=20250916-2"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2?v=20250916-2"></script>
+  <script defer src="js/ranking.js?v=20250916-2"></script>
+  <script defer src="js/quiz.js?v=20250916-2"></script>
 </head>
 
 <body>
@@ -106,8 +106,8 @@
       <div class="actions">
         <button id="restart-btn">もう一度</button>
         <button id="share-instagram-btn">Instagramでシェア</button>
-        <!-- ランキングは結果画面でのみ表示（初期はCSS/JSで非表示） -->
-        <button id="open-ranking-btn" class="open-ranking-btn" style="display:none">詳細ランキングを見る</button>
+        <!-- ランキングは結果画面で常設。表示制御はJSで保証 -->
+        <button id="open-ranking-btn" class="open-ranking-btn">詳細ランキングを見る</button>
       </div>
     </div>
   </main>
