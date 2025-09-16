@@ -970,7 +970,81 @@ try {
       btn.replaceWith(btn.cloneNode(true));
       btn = document.getElementById('open-ranking-btn');
       try { btn.classList.add('open-ranking-btn'); } catch(_) {}
-      btn.addEventListener('click', openRankingModal, { once:false });
+      // Prefer the unified overlay if available; otherwise keep legacy handler
+      if (typeof window.openRankingOverlay === 'function') {
+        btn.onclick = window.openRankingOverlay;
+      } else {
+        btn.addEventListener('click', openRankingModal, { once:false });
+      }
     }
   };
+})();
+
+// --- Overlay-based ranking modal; idempotent install ---
+(function ensureRankingOverlay(){
+  if (window.openRankingOverlay) return;
+
+  window.openRankingOverlay = async function(){
+    try { document.getElementById('__rankOverlay')?.remove(); } catch(_) {}
+
+    const ov = document.createElement('div');
+    ov.id = '__rankOverlay';
+    document.body.appendChild(ov);
+    const set = (el,k,v)=>el.style.setProperty(k,v,'important');
+    set(ov,'position','fixed'); set(ov,'inset','0'); set(ov,'z-index','2147483647');
+    set(ov,'background','rgba(0,0,0,.65)'); set(ov,'display','flex');
+    set(ov,'align-items','center'); set(ov,'justify-content','center');
+
+    const card = document.createElement('div');
+    ov.appendChild(card);
+    set(card,'background','#12131a'); set(card,'color','#fff');
+    set(card,'padding','16px 20px'); set(card,'border-radius','12px');
+    set(card,'max-height','80vh'); set(card,'overflow','auto');
+    set(card,'min-width','360px'); set(card,'box-shadow','0 10px 40px rgba(0,0,0,.5)');
+
+    const h = document.createElement('div');
+    h.textContent = 'ランキング（上位10）';
+    h.style.fontWeight = '700'; h.style.margin = '0 0 8px';
+    card.appendChild(h);
+
+    const tbl = document.createElement('table');
+    set(tbl,'border-collapse','collapse'); set(tbl,'width','100%'); tbl.style.fontSize='14px';
+    card.appendChild(tbl);
+
+    const foot = document.createElement('div');
+    set(foot,'text-align','right'); set(foot,'margin-top','8px');
+    foot.innerHTML = `<button id="__rankClose">閉じる</button>`;
+    card.appendChild(foot);
+    foot.querySelector('#__rankClose').onclick = ()=> ov.remove();
+
+    try{
+      const rows = await (window.rankingSystem?.getTop?.(10) ?? Promise.resolve([]));
+      const head = `<tr><th style="text-align:left;padding:8px;border-bottom:1px solid #333">名前</th>
+        <th style="text-align:right;padding:8px;border-bottom:1px solid #333">得点</th>
+        <th style="text-align:right;padding:8px;border-bottom:1px solid #333">％</th>
+        <th style="text-align:right;padding:8px;border-bottom:1px solid #333">秒</th></tr>`;
+      const body = (rows||[]).map(r=>`
+        <tr>
+          <td style="padding:8px;border-bottom:1px solid #2a2a2a">${(r.name??'')}</td>
+          <td style="padding:8px;text-align:right;border-bottom:1px solid #2a2a2a">${r.score}/${r.total_questions}</td>
+          <td style="padding:8px;text-align:right;border-bottom:1px solid #2a2a2a">${Math.round(Number(r.percentage||0))}</td>
+          <td style="padding:8px;text-align:right;border-bottom:1px solid #2a2a2a">${r.time_spent}</td>
+        </tr>`).join('');
+      tbl.innerHTML = (head + body) || `<tr><td style="padding:12px">データがありません</td></tr>`;
+    } catch(e) {
+      console.error('[RANK] overlay error', e);
+      tbl.innerHTML = `<tr><td style="padding:12px;color:#f99">取得に失敗しました</td></tr>`;
+    }
+  };
+
+  // Fallback binding at load time
+  window.addEventListener('DOMContentLoaded', function(){
+    ['open-ranking-btn','viewRankingBtn'].forEach(id=>{
+      const b = document.getElementById(id);
+      if (b){
+        b.style.setProperty('display','inline-block','important');
+        b.onclick = window.openRankingOverlay;
+      }
+    });
+  });
 })();
