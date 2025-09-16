@@ -110,6 +110,7 @@ window.rankingSystem = Object.assign({}, window.rankingSystem, {
 
 // FORCE (safe): keep "詳細ランキングを見る" button visible & clickable (no MutationObserver)
 document.addEventListener('DOMContentLoaded', function () {
+  return; // TEMP: disable FORCE block (white screen hotfix)
   try {
     var tries = 0;
 
