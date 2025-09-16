@@ -108,7 +108,7 @@ window.rankingSystem = Object.assign({}, window.rankingSystem, {
   }
 })();
 
-// FORCE: keep "詳細ランキングを見る" button visible & clickable
+// FORCE: keep "詳細ランキングを見る" button visible & clickable (with MutationObserver)
 document.addEventListener('DOMContentLoaded', () => {
   const forceShow = () => {
     const btn = document.getElementById('open-ranking-btn');
@@ -123,16 +123,18 @@ document.addEventListener('DOMContentLoaded', () => {
       btn.addEventListener('click', (e) => {
         e.preventDefault();
         if (typeof openRankingOverlay === 'function') openRankingOverlay();
-      });
+      }, { passive: false });
       btn.dataset.bound = '1';
     }
   };
 
-  // 直後 & その後もしつこく上書き（何かが隠しても押し返す）
+  // 初回
   forceShow();
-  let tries = 0;
-  const t = setInterval(() => {
-    forceShow();
-    if (++tries >= 20) clearInterval(t); // 約4秒だけ監視
-  }, 200);
+
+  // DOM変化（class付与/hidden再付与/child変更など）を監視して都度押し返す
+  const mo = new MutationObserver(() => forceShow());
+  mo.observe(document.documentElement, { attributes: true, childList: true, subtree: true });
+
+  // 念のため1秒おきにも再適用（最終保険）
+  setInterval(forceShow, 1000);
 });
