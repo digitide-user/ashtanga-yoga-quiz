@@ -758,3 +758,10 @@ div[style*="position:fixed"], div[style*="position: fixed"] {
 }
 /* Safety: hide any fixed-position leftovers (QA debug pills etc.) */
 *[style*="position:fixed"], *[style*="position: fixed"] { display: none !important; }
+
+/* --- HOTFIX: keep result text visible --- */
+#score {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
