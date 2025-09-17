@@ -165,16 +165,18 @@ function resetAllButtonStates() {
     });
 }
 
-function loadQuiz() {
-    // 結果保持ウィンドウの間は再開しない
+function loadQuiz(opts) {
+    // 結果表示のホールド中は強制以外は再開しない
     try {
-        if (window.__RESULT_HOLD_UNTIL__ && Date.now() < window.__RESULT_HOLD_UNTIL__) {
+        if (window.__QUIZ_RESULT_HOLD__ && !(opts && opts.force)) {
             const el = document.getElementById('score');
             if (el) {
-                el.removeAttribute('hidden');
+                el.removeAttribute?.('hidden');
                 el.style.display = 'block';
+                el.style.visibility = 'visible';
+                el.style.opacity = '1';
             }
-            return; // 保持中はリスタートしない
+            return; // ホールド中は自動再開しない
         }
     } catch(_) {}
 
@@ -389,9 +391,8 @@ function showResult() {
       el.style.display = 'block';
       el.style.visibility = 'visible';
       el.style.opacity = '1';
-      // 結果画面を一定時間保持（デフォルト 20s）
-      window.RESULT_HOLD_MS ??= 20000;
-      window.__RESULT_HOLD_UNTIL__ = Date.now() + window.RESULT_HOLD_MS;
+      // 結果はユーザーがリスタートするまで保持
+      window.__QUIZ_RESULT_HOLD__ = true;
     } catch(_) {
       // fallback
       try { if (scoreElement) scoreElement.innerText = resultText; } catch(_) {}
@@ -521,14 +522,20 @@ window.showResultText = function (text) {
 };
 
 const __handleRestart = () => {
-  // ユーザー操作でのリスタートは保持ウィンドウを解除
-  try { window.__RESULT_HOLD_UNTIL__ = 0; } catch(_) {}
+  // ユーザー操作でのリスタートはホールドを解除
+  try { window.__QUIZ_RESULT_HOLD__ = false; } catch(_) {}
   // リスタート時にもボタン状態を完全リセット
   try { resetAllButtonStates && resetAllButtonStates(); } catch(e) { console.warn('[QUIZ] resetAllButtonStates unavailable', e); }
   try { resultContainer && resultContainer.classList.add('hidden'); } catch(e) {}
   try { quizContainer && quizContainer.classList.remove('hidden'); } catch(e) {}
   // 少し遅延してからクイズを再開始
-  setTimeout(() => { try { setupQuiz && setupQuiz(); } catch(e) { console.error('[QUIZ] setupQuiz failed', e); } }, 100);
+  setTimeout(() => {
+    try {
+      if (typeof setupQuiz === 'function') setupQuiz();
+      // 明示的に強制開始（ホールド無視）
+      try { loadQuiz && loadQuiz({ force: true }); } catch(_) {}
+    } catch(e) { console.error('[QUIZ] setup/load failed', e); }
+  }, 100);
 };
 
 // 既存のボタンがあればバインド。無ければ何もしない（自動注入しない）
