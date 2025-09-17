@@ -376,20 +376,26 @@ function showResult() {
     resultContainer.classList.remove('hidden');
 
     const resultText = `${questions.length}問中 ${score}問正解！（${Math.floor(totalTimeSpent / 60)}分${totalTimeSpent % 60}秒）`;
-    scoreElement.innerText = resultText;
     try {
-      const el = document.getElementById('score');
-      if (el) {
-        el.textContent = resultText;
-        el.removeAttribute('hidden');
-        el.classList?.remove('hidden','invisible');
-        el.style.display = 'block';
-        el.style.visibility = 'visible';
-        el.style.opacity = '1';
-      }
+      const el = document.getElementById('score') || (function(){
+        const d = document.createElement('div');
+        d.id = 'score';
+        (document.getElementById('quiz') || document.body).prepend(d);
+        return d;
+      })();
+      el.textContent = resultText;
+      el.removeAttribute?.('hidden');
+      el.classList?.remove('hidden','invisible');
+      el.style.display = 'block';
+      el.style.visibility = 'visible';
+      el.style.opacity = '1';
       // 結果画面を一定時間保持（デフォルト 20s）
-      window.__RESULT_HOLD_UNTIL__ = Date.now() + (window.RESULT_HOLD_MS ?? 20000);
-    } catch(_) {}
+      window.RESULT_HOLD_MS ??= 20000;
+      window.__RESULT_HOLD_UNTIL__ = Date.now() + window.RESULT_HOLD_MS;
+    } catch(_) {
+      // fallback
+      try { if (scoreElement) scoreElement.innerText = resultText; } catch(_) {}
+    }
 
     let rewardMessage = '';
     if (score === 10) {
@@ -515,6 +521,8 @@ window.showResultText = function (text) {
 };
 
 const __handleRestart = () => {
+  // ユーザー操作でのリスタートは保持ウィンドウを解除
+  try { window.__RESULT_HOLD_UNTIL__ = 0; } catch(_) {}
   // リスタート時にもボタン状態を完全リセット
   try { resetAllButtonStates && resetAllButtonStates(); } catch(e) { console.warn('[QUIZ] resetAllButtonStates unavailable', e); }
   try { resultContainer && resultContainer.classList.add('hidden'); } catch(e) {}
@@ -1122,81 +1130,4 @@ try {
   });
 })();
 
-// HOTFIX: persist & pin result via Shadow DOM overlay; hold off auto restart
-(function(){
-  var HOLD_MS = 20000; // 結果表示から20秒は自動再スタートを抑止
-  var KEY = '__ayq_last_score__';
-  var holdUntil = 0, bound = false;
-
-  function now(){ return Date.now(); }
-  function save(t){ try{ sessionStorage.setItem(KEY, JSON.stringify({ t:t, ts:now() })); }catch(e){} }
-  function load(){ try{ var o = JSON.parse(sessionStorage.getItem(KEY)||'null'); if(!o) return null; return o.t || null; }catch(e){ return null; } }
-
-  function ensureOverlay(){
-    var host = document.getElementById('result-overlay-host');
-    if(!host){
-      host = document.createElement('div');
-      host.id = 'result-overlay-host';
-      // bodyが丸ごと入れ替わっても消えにくいように <html> 配下に直置き
-      document.documentElement.appendChild(host);
-      host.attachShadow({ mode:'open' });
-    }
-    var sh = host.shadowRoot;
-    sh.innerHTML =
-      '<style>#ov{position:fixed;left:50%;top:24px;transform:translateX(-50%);padding:12px 16px;border-radius:12px;background:#fff;box-shadow:0 6px 24px rgba(0,0,0,.2);z-index:2147483647;font-weight:600;line-height:1.4;display:flex;gap:12px;align-items:center;white-space:pre-wrap}#ov button{cursor:pointer;border:none;background:transparent;font-size:16px;line-height:1}</style>' +
-      '<div id="ov"><span id="txt"></span><button id="x" title="閉じる">×</button></div>';
-    sh.getElementById('x').onclick = function(){
-      try{ sessionStorage.removeItem(KEY); }catch(e){}
-      host.remove();
-    };
-    return sh;
-  }
-  function showOverlay(text){
-    if(!text) return;
-    var sh = ensureOverlay();
-    sh.getElementById('txt').textContent = text;
-  }
-
-  function captureScore(){
-    var el = document.getElementById('score');
-    var t = el && (el.textContent||'').trim();
-    if(t){ save(t); showOverlay(t); }
-  }
-
-  function bind(){
-    if(bound) return true;
-    var sr = window.showResult;
-    var lq = window.loadQuiz;
-
-    if(typeof sr === 'function'){
-      window.showResult = function(){
-        var r = sr.apply(this, arguments);
-        holdUntil = now() + HOLD_MS;
-        setTimeout(captureScore, 0);
-        return r;
-      };
-    }
-    if(typeof lq === 'function'){
-      window.loadQuiz = function(){
-        if(holdUntil && now() < holdUntil){
-          var prev = load();
-          if(prev) showOverlay(prev);
-          return; // 自動再スタート抑止
-        }
-        return lq.apply(this, arguments);
-      };
-    }
-    bound = (typeof window.showResult === 'function') && (typeof window.loadQuiz === 'function');
-    // 直近の結果があれば即表示（高速リロード直後など）
-    var prev = load(); if(prev) showOverlay(prev);
-    return bound;
-  }
-
-  // showResult/loadQuiz が後で定義される可能性に備えてポーリングでバインド
-  var tries = 0, iv = setInterval(function(){
-    if(bind() || ++tries > 100){ // 最大 ~10秒試行
-      clearInterval(iv);
-      if(!bound){ var prev = load(); if(prev) showOverlay(prev); }
-    }
-  }, 100);
-})();
+// removed HOTFIX: result overlay & sessionStorage persistence
