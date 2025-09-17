@@ -1083,11 +1083,17 @@ try {
   });
 })();
 
-// HOTFIX: keep #score (result text) visible and prevent it from being cleared
+// HOTFIX: keep #score text visible even if the DOM is re-rendered or cleared
 document.addEventListener('DOMContentLoaded', function () {
-  (function persistScoreText() {
+  (function keepScoreAlive() {
     var lastText = '';
-    function find() { return document.getElementById('score'); }
+    var root = document.querySelector('#quiz') ||
+               document.querySelector('#app') ||
+               document.querySelector('.quiz') ||
+               document.body;
+
+    function getScore() { return document.getElementById('score'); }
+
     function forceShow(el) {
       if (!el) return;
       el.removeAttribute && el.removeAttribute('hidden');
@@ -1098,38 +1104,55 @@ document.addEventListener('DOMContentLoaded', function () {
         el.style.setProperty('opacity', '1', 'important');
       }
     }
+
+    function ensureNode() {
+      if (!lastText) return null;
+      var el = getScore();
+      if (el) return el;
+      el = document.createElement('div');
+      el.id = 'score';
+      el.className = 'score-message';
+      el.textContent = lastText;
+      root.appendChild(el);
+      return el;
+    }
+
     function refresh() {
-      var el = find();
-      if (!el) return;
-      var t = (el.textContent || '').trim();
-      if (t) lastText = t;              // 記録
-      forceShow(el);                    // 常に可視化
-      if (!((el.textContent || '').trim()) && lastText) {
-        el.textContent = lastText;      // クリアされたら復元
+      var el = getScore();
+      if (el) {
+        var t = (el.textContent || '').trim();
+        if (t) lastText = t;                 // 最新テキストを保持
+        forceShow(el);                        // 常に可視化
+        if (!((el.textContent || '').trim()) && lastText) {
+          el.textContent = lastText;         // クリアされたら復元
+        }
+      } else {
+        // 要素ごと消された場合は再生成
+        ensureNode();
       }
     }
-    // #score 自体の変化だけを監視（軽量）
-    function attach() {
-      var el = find();
-      if (!el) return false;
-      try {
-        var mo = new MutationObserver(refresh);
-        mo.observe(el, {
-          childList: true,
-          characterData: true,
-          subtree: true,
-          attributes: true,
-          attributeFilter: ['hidden', 'style', 'class']
-        });
-      } catch (e) {}
-      refresh();
-      return true;
-    }
-    // 最長10秒リトライして #score を捕捉
+
+    // 初回
+    refresh();
+
+    // ルート配下のDOM変化を監視（要素の付け替え・テキスト変更・hidden付与など）
+    try {
+      var mo = new MutationObserver(function () { refresh(); });
+      mo.observe(root, {
+        childList: true,
+        subtree: true,
+        characterData: true,
+        attributes: true,
+        attributeFilter: ['hidden', 'style', 'class']
+      });
+    } catch (e) {}
+
+    // 念のための定期チェック（約30秒）
     var tries = 0;
     var iv = setInterval(function () {
-      if (attach() || ++tries > 50) clearInterval(iv);
-      else refresh();
-    }, 200);
+      refresh();
+      if (++tries > 100) clearInterval(iv);
+    }, 300);
   })();
 });
+
