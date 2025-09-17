@@ -199,18 +199,9 @@ h1 .small-title {
     }
 }
 
-/* --- Consolidated overrides from css/styles.css (legacy alias) --- */
-/* Previously loaded after style.css; keep at end to preserve precedence. */
-/* --- hotfix: keep ranking button and result visible --- */
-#open-ranking-btn{display:inline-flex!important;visibility:visible!important;opacity:1!important}
-/* Remove overlay-wide force rules; rely on in-app rendering */
-
-/* Ensure result text is visible by default */
+/* Minimal visibility rules (post-hotfix cleanup) */
+#open-ranking-btn { display:inline-flex !important; visibility:visible !important; opacity:1 !important; }
 #score { display:block; visibility:visible; opacity:1; }
-
-
-/* Ensure result container is visible when shown */
-#result-container { display: block; }
 
 /* iPhone Safari用の軽量ボタンリセット */
 .choice-btn:not(:hover):not(:active):not(:focus) {
