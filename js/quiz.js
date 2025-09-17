@@ -1083,139 +1083,81 @@ try {
   });
 })();
 
-// HOTFIX: keep result (#score) visible by holding off auto-restart briefly
-(function () {
+// HOTFIX: persist & pin result via Shadow DOM overlay; hold off auto restart
+(function(){
+  var HOLD_MS = 20000; // 結果表示から20秒は自動再スタートを抑止
+  var KEY = '__ayq_last_score__';
+  var holdUntil = 0, bound = false;
+
   function now(){ return Date.now(); }
-  var HOLD_MS = 15000; // 結果表示を最低15秒は維持
-  var originalShowResult = window.showResult;
-  var originalLoadQuiz  = window.loadQuiz;
+  function save(t){ try{ sessionStorage.setItem(KEY, JSON.stringify({ t:t, ts:now() })); }catch(e){} }
+  function load(){ try{ var o = JSON.parse(sessionStorage.getItem(KEY)||'null'); if(!o) return null; return o.t || null; }catch(e){ return null; } }
 
-  function forceShowScore(){
+  function ensureOverlay(){
+    var host = document.getElementById('result-overlay-host');
+    if(!host){
+      host = document.createElement('div');
+      host.id = 'result-overlay-host';
+      // bodyが丸ごと入れ替わっても消えにくいように <html> 配下に直置き
+      document.documentElement.appendChild(host);
+      host.attachShadow({ mode:'open' });
+    }
+    var sh = host.shadowRoot;
+    sh.innerHTML =
+      '<style>#ov{position:fixed;left:50%;top:24px;transform:translateX(-50%);padding:12px 16px;border-radius:12px;background:#fff;box-shadow:0 6px 24px rgba(0,0,0,.2);z-index:2147483647;font-weight:600;line-height:1.4;display:flex;gap:12px;align-items:center;white-space:pre-wrap}#ov button{cursor:pointer;border:none;background:transparent;font-size:16px;line-height:1}</style>' +
+      '<div id="ov"><span id="txt"></span><button id="x" title="閉じる">×</button></div>';
+    sh.getElementById('x').onclick = function(){
+      try{ sessionStorage.removeItem(KEY); }catch(e){}
+      host.remove();
+    };
+    return sh;
+  }
+  function showOverlay(text){
+    if(!text) return;
+    var sh = ensureOverlay();
+    sh.getElementById('txt').textContent = text;
+  }
+
+  function captureScore(){
     var el = document.getElementById('score');
-    if (!el) return;
-    el.removeAttribute && el.removeAttribute('hidden');
-    el.classList && el.classList.remove('hidden','invisible');
-    if (el.style) {
-      el.style.setProperty('display','block','important');
-      el.style.setProperty('visibility','visible','important');
-      el.style.setProperty('opacity','1','important');
+    var t = el && (el.textContent||'').trim();
+    if(t){ save(t); showOverlay(t); }
+  }
+
+  function bind(){
+    if(bound) return true;
+    var sr = window.showResult;
+    var lq = window.loadQuiz;
+
+    if(typeof sr === 'function'){
+      window.showResult = function(){
+        var r = sr.apply(this, arguments);
+        holdUntil = now() + HOLD_MS;
+        setTimeout(captureScore, 0);
+        return r;
+      };
     }
+    if(typeof lq === 'function'){
+      window.loadQuiz = function(){
+        if(holdUntil && now() < holdUntil){
+          var prev = load();
+          if(prev) showOverlay(prev);
+          return; // 自動再スタート抑止
+        }
+        return lq.apply(this, arguments);
+      };
+    }
+    bound = (typeof window.showResult === 'function') && (typeof window.loadQuiz === 'function');
+    // 直近の結果があれば即表示（高速リロード直後など）
+    var prev = load(); if(prev) showOverlay(prev);
+    return bound;
   }
 
-  if (typeof originalShowResult === 'function') {
-    window.showResult = function () {
-      window.__resultHoldUntil = now() + HOLD_MS;
-      try {
-        return originalShowResult.apply(this, arguments);
-      } finally {
-        forceShowScore();
-      }
-    };
-  }
-
-  if (typeof originalLoadQuiz === 'function') {
-    window.loadQuiz = function () {
-      if (window.__resultHoldUntil && now() < window.__resultHoldUntil) {
-        // 結果表示を維持して自動再スタートを抑制
-        forceShowScore();
-        return;
-      }
-      return originalLoadQuiz.apply(this, arguments);
-    };
-  }
+  // showResult/loadQuiz が後で定義される可能性に備えてポーリングでバインド
+  var tries = 0, iv = setInterval(function(){
+    if(bind() || ++tries > 100){ // 最大 ~10秒試行
+      clearInterval(iv);
+      if(!bound){ var prev = load(); if(prev) showOverlay(prev); }
+    }
+  }, 100);
 })();
-
-// HOTFIX: Persist result text across re-renders/reloads using sessionStorage + sticky overlay
-document.addEventListener('DOMContentLoaded', function () {
-  (function resultOverlayPersist() {
-    var KEY = '__ayq_last_score__';
-    var TTL = 20000; // 20秒は結果を維持
-    var lastShown = '';
-
-    function now(){ return Date.now(); }
-
-    function save(text){
-      try { sessionStorage.setItem(KEY, JSON.stringify({ text: text, ts: now() })); } catch(e){}
-    }
-    function load(){
-      try {
-        var obj = JSON.parse(sessionStorage.getItem(KEY) || 'null');
-        if (!obj) return null;
-        if (now() - obj.ts > TTL) return null;
-        return obj.text || null;
-      } catch(e){ return null; }
-    }
-
-    function ensureStyle() {
-      if (document.getElementById('result-overlay-style')) return;
-      var style = document.createElement('style');
-      style.id = 'result-overlay-style';
-      style.textContent =
-        '#result-overlay{position:fixed;left:50%;top:24px;transform:translateX(-50%);' +
-        'padding:12px 16px;border-radius:12px;background:#fff;box-shadow:0 6px 24px rgba(0,0,0,.2);' +
-        'z-index:2147483647;font-weight:600;line-height:1.4;}' +
-        '#result-overlay .close{margin-left:12px;cursor:pointer;border:none;background:transparent;font-size:16px;line-height:1;}' +
-        '@media (max-width:480px){#result-overlay{left:8px;right:8px;transform:none;}}';
-      document.head.appendChild(style);
-    }
-
-    function show(text){
-      if (!text) return;
-      ensureStyle();
-      var div = document.getElementById('result-overlay');
-      if (!div) {
-        div = document.createElement('div');
-        div.id = 'result-overlay';
-        var close = document.createElement('button');
-        close.className = 'close';
-        close.textContent = '×';
-        close.addEventListener('click', function(){
-          var s=document.getElementById('result-overlay-style'); s&&s.remove();
-          div.remove();
-          try { sessionStorage.removeItem(KEY); } catch(e){}
-        });
-        div.appendChild(close);
-        document.body.appendChild(div);
-      }
-      // テキスト更新（既存のspanは入れ替え）
-      Array.from(div.querySelectorAll('span')).forEach(function(n){ n.remove(); });
-      var span = document.createElement('span');
-      span.textContent = text;
-      div.insertBefore(span, div.querySelector('.close'));
-    }
-
-    function captureFromDom(){
-      var el = document.getElementById('score');
-      var t = el && (el.textContent || '').trim();
-      if (t && t !== lastShown) {
-        lastShown = t;
-        save(t);     // DOMで見えた瞬間に保存
-        show(t);     // すぐ反映
-      }
-    }
-
-    // 1) 初回：sessionStorageに残っていれば復元（リロードや全消去にも耐える）
-    var persisted = load();
-    if (persisted) { lastShown = persisted; show(persisted); }
-
-    // 2) 軽量ポーリングで #score を監視して保存＆表示（JSがDOMを書き換えても追従）
-    var iv = setInterval(function(){
-      captureFromDom();
-      // TTLが切れたら自動消去（overlayはcloseで手動でも消せる）
-      if (!load()) {
-        clearInterval(iv);
-        var div = document.getElementById('result-overlay');
-        if (div) div.remove();
-        var s=document.getElementById('result-overlay-style'); s&&s.remove();
-      }
-    }, 250);
-
-    // 3) タブ復帰時にも再描画
-    document.addEventListener('visibilitychange', function(){
-      if (!document.hidden) {
-        var again = load();
-        if (again) show(again);
-      }
-    });
-  })();
-});
