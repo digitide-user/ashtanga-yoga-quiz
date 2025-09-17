@@ -1083,76 +1083,45 @@ try {
   });
 })();
 
-// HOTFIX: keep #score text visible even if the DOM is re-rendered or cleared
-document.addEventListener('DOMContentLoaded', function () {
-  (function keepScoreAlive() {
-    var lastText = '';
-    var root = document.querySelector('#quiz') ||
-               document.querySelector('#app') ||
-               document.querySelector('.quiz') ||
-               document.body;
+// HOTFIX: keep result (#score) visible by holding off auto-restart briefly
+(function () {
+  function now(){ return Date.now(); }
+  var HOLD_MS = 15000; // 結果表示を最低15秒は維持
+  var originalShowResult = window.showResult;
+  var originalLoadQuiz  = window.loadQuiz;
 
-    function getScore() { return document.getElementById('score'); }
+  function forceShowScore(){
+    var el = document.getElementById('score');
+    if (!el) return;
+    el.removeAttribute && el.removeAttribute('hidden');
+    el.classList && el.classList.remove('hidden','invisible');
+    if (el.style) {
+      el.style.setProperty('display','block','important');
+      el.style.setProperty('visibility','visible','important');
+      el.style.setProperty('opacity','1','important');
+    }
+  }
 
-    function forceShow(el) {
-      if (!el) return;
-      el.removeAttribute && el.removeAttribute('hidden');
-      el.classList && el.classList.remove('hidden', 'invisible');
-      if (el.style) {
-        el.style.setProperty('display', 'block', 'important');
-        el.style.setProperty('visibility', 'visible', 'important');
-        el.style.setProperty('opacity', '1', 'important');
+  if (typeof originalShowResult === 'function') {
+    window.showResult = function () {
+      window.__resultHoldUntil = now() + HOLD_MS;
+      try {
+        return originalShowResult.apply(this, arguments);
+      } finally {
+        forceShowScore();
       }
-    }
+    };
+  }
 
-    function ensureNode() {
-      if (!lastText) return null;
-      var el = getScore();
-      if (el) return el;
-      el = document.createElement('div');
-      el.id = 'score';
-      el.className = 'score-message';
-      el.textContent = lastText;
-      root.appendChild(el);
-      return el;
-    }
-
-    function refresh() {
-      var el = getScore();
-      if (el) {
-        var t = (el.textContent || '').trim();
-        if (t) lastText = t;                 // 最新テキストを保持
-        forceShow(el);                        // 常に可視化
-        if (!((el.textContent || '').trim()) && lastText) {
-          el.textContent = lastText;         // クリアされたら復元
-        }
-      } else {
-        // 要素ごと消された場合は再生成
-        ensureNode();
+  if (typeof originalLoadQuiz === 'function') {
+    window.loadQuiz = function () {
+      if (window.__resultHoldUntil && now() < window.__resultHoldUntil) {
+        // 結果表示を維持して自動再スタートを抑制
+        forceShowScore();
+        return;
       }
-    }
-
-    // 初回
-    refresh();
-
-    // ルート配下のDOM変化を監視（要素の付け替え・テキスト変更・hidden付与など）
-    try {
-      var mo = new MutationObserver(function () { refresh(); });
-      mo.observe(root, {
-        childList: true,
-        subtree: true,
-        characterData: true,
-        attributes: true,
-        attributeFilter: ['hidden', 'style', 'class']
-      });
-    } catch (e) {}
-
-    // 念のための定期チェック（約30秒）
-    var tries = 0;
-    var iv = setInterval(function () {
-      refresh();
-      if (++tries > 100) clearInterval(iv);
-    }, 300);
-  })();
-});
+      return originalLoadQuiz.apply(this, arguments);
+    };
+  }
+})();
 
