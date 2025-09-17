@@ -1082,3 +1082,54 @@ try {
     mo.observe(res, { childList:true, subtree:true });
   });
 })();
+
+// HOTFIX: keep #score (result text) visible and prevent it from being cleared
+document.addEventListener('DOMContentLoaded', function () {
+  (function persistScoreText() {
+    var lastText = '';
+    function find() { return document.getElementById('score'); }
+    function forceShow(el) {
+      if (!el) return;
+      el.removeAttribute && el.removeAttribute('hidden');
+      el.classList && el.classList.remove('hidden', 'invisible');
+      if (el.style) {
+        el.style.setProperty('display', 'block', 'important');
+        el.style.setProperty('visibility', 'visible', 'important');
+        el.style.setProperty('opacity', '1', 'important');
+      }
+    }
+    function refresh() {
+      var el = find();
+      if (!el) return;
+      var t = (el.textContent || '').trim();
+      if (t) lastText = t;              // 記録
+      forceShow(el);                    // 常に可視化
+      if (!((el.textContent || '').trim()) && lastText) {
+        el.textContent = lastText;      // クリアされたら復元
+      }
+    }
+    // #score 自体の変化だけを監視（軽量）
+    function attach() {
+      var el = find();
+      if (!el) return false;
+      try {
+        var mo = new MutationObserver(refresh);
+        mo.observe(el, {
+          childList: true,
+          characterData: true,
+          subtree: true,
+          attributes: true,
+          attributeFilter: ['hidden', 'style', 'class']
+        });
+      } catch (e) {}
+      refresh();
+      return true;
+    }
+    // 最長10秒リトライして #score を捕捉
+    var tries = 0;
+    var iv = setInterval(function () {
+      if (attach() || ++tries > 50) clearInterval(iv);
+      else refresh();
+    }, 200);
+  })();
+});
