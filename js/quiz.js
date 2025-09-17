@@ -1125,10 +1125,27 @@ try {
   }
 })();
 
-// HOTFIX: clone #score text into a sticky overlay so it stays visible even after re-renders
+// HOTFIX: Persist result text across re-renders/reloads using sessionStorage + sticky overlay
 document.addEventListener('DOMContentLoaded', function () {
-  (function stickyResultOverlay() {
-    var last = '';
+  (function resultOverlayPersist() {
+    var KEY = '__ayq_last_score__';
+    var TTL = 20000; // 20秒は結果を維持
+    var lastShown = '';
+
+    function now(){ return Date.now(); }
+
+    function save(text){
+      try { sessionStorage.setItem(KEY, JSON.stringify({ text: text, ts: now() })); } catch(e){}
+    }
+    function load(){
+      try {
+        var obj = JSON.parse(sessionStorage.getItem(KEY) || 'null');
+        if (!obj) return null;
+        if (now() - obj.ts > TTL) return null;
+        return obj.text || null;
+      } catch(e){ return null; }
+    }
+
     function ensureStyle() {
       if (document.getElementById('result-overlay-style')) return;
       var style = document.createElement('style');
@@ -1136,12 +1153,14 @@ document.addEventListener('DOMContentLoaded', function () {
       style.textContent =
         '#result-overlay{position:fixed;left:50%;top:24px;transform:translateX(-50%);' +
         'padding:12px 16px;border-radius:12px;background:#fff;box-shadow:0 6px 24px rgba(0,0,0,.2);' +
-        'z-index:99999;font-weight:600;line-height:1.4;}' +
+        'z-index:2147483647;font-weight:600;line-height:1.4;}' +
         '#result-overlay .close{margin-left:12px;cursor:pointer;border:none;background:transparent;font-size:16px;line-height:1;}' +
         '@media (max-width:480px){#result-overlay{left:8px;right:8px;transform:none;}}';
       document.head.appendChild(style);
     }
-    function showOverlay(text) {
+
+    function show(text){
+      if (!text) return;
       ensureStyle();
       var div = document.getElementById('result-overlay');
       if (!div) {
@@ -1150,26 +1169,53 @@ document.addEventListener('DOMContentLoaded', function () {
         var close = document.createElement('button');
         close.className = 'close';
         close.textContent = '×';
-        close.addEventListener('click', function(){ var s=document.getElementById('result-overlay-style'); s&&s.remove(); div.remove(); });
+        close.addEventListener('click', function(){
+          var s=document.getElementById('result-overlay-style'); s&&s.remove();
+          div.remove();
+          try { sessionStorage.removeItem(KEY); } catch(e){}
+        });
         div.appendChild(close);
         document.body.appendChild(div);
       }
-      // テキスト部分は close ボタンの前に差し込む
-      var txt = document.createElement('span');
-      txt.textContent = text;
-      // 古いテキスト（span）を消して入れ替え
+      // テキスト更新（既存のspanは入れ替え）
       Array.from(div.querySelectorAll('span')).forEach(function(n){ n.remove(); });
-      div.insertBefore(txt, div.querySelector('.close'));
+      var span = document.createElement('span');
+      span.textContent = text;
+      div.insertBefore(span, div.querySelector('.close'));
     }
-    function tick() {
+
+    function captureFromDom(){
       var el = document.getElementById('score');
       var t = el && (el.textContent || '').trim();
-      if (t && t !== last) {
-        last = t;
-        showOverlay(t);
+      if (t && t !== lastShown) {
+        lastShown = t;
+        save(t);     // DOMで見えた瞬間に保存
+        show(t);     // すぐ反映
       }
     }
-    tick();
-    setInterval(tick, 250); // 軽量ポーリング
+
+    // 1) 初回：sessionStorageに残っていれば復元（リロードや全消去にも耐える）
+    var persisted = load();
+    if (persisted) { lastShown = persisted; show(persisted); }
+
+    // 2) 軽量ポーリングで #score を監視して保存＆表示（JSがDOMを書き換えても追従）
+    var iv = setInterval(function(){
+      captureFromDom();
+      // TTLが切れたら自動消去（overlayはcloseで手動でも消せる）
+      if (!load()) {
+        clearInterval(iv);
+        var div = document.getElementById('result-overlay');
+        if (div) div.remove();
+        var s=document.getElementById('result-overlay-style'); s&&s.remove();
+      }
+    }, 250);
+
+    // 3) タブ復帰時にも再描画
+    document.addEventListener('visibilitychange', function(){
+      if (!document.hidden) {
+        var again = load();
+        if (again) show(again);
+      }
+    });
   })();
 });
