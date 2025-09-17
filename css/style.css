@@ -206,6 +206,9 @@ h1 .small-title {
 #quiz #result,#quiz #result-message,#quiz .result,#quiz .score,#quiz .score-message,#app #result,#app #result-message,#app .result,#app .score,#app .score-message,.quiz #result,.quiz #result-message,.quiz .result,.quiz .score,.quiz .score-message{display:block!important;visibility:visible!important;opacity:1!important}
 #quiz [hidden],#quiz .hidden,#quiz .is-hidden,#app [hidden],#app .hidden,#app .is-hidden,.quiz [hidden],.quiz .hidden,.quiz .is-hidden{display:initial!important;visibility:visible!important;opacity:1!important}
 
+/* Ensure result text is visible by default */
+#score { display:block; visibility:visible; opacity:1; }
+
 
 /* Ensure result container is visible when shown */
 #result-container { display: block; }

@@ -166,6 +166,18 @@ function resetAllButtonStates() {
 }
 
 function loadQuiz() {
+    // 結果保持ウィンドウの間は再開しない
+    try {
+        if (window.__RESULT_HOLD_UNTIL__ && Date.now() < window.__RESULT_HOLD_UNTIL__) {
+            const el = document.getElementById('score');
+            if (el) {
+                el.removeAttribute('hidden');
+                el.style.display = 'block';
+            }
+            return; // 保持中はリスタートしない
+        }
+    } catch(_) {}
+
     if (currentQuestionIndex >= questions.length) {
         showResult();
         return;
@@ -363,7 +375,21 @@ function showResult() {
     quizContainer.classList.add('hidden');
     resultContainer.classList.remove('hidden');
 
-    scoreElement.innerText = `${questions.length}問中 ${score}問正解！（${Math.floor(totalTimeSpent / 60)}分${totalTimeSpent % 60}秒）`;
+    const resultText = `${questions.length}問中 ${score}問正解！（${Math.floor(totalTimeSpent / 60)}分${totalTimeSpent % 60}秒）`;
+    scoreElement.innerText = resultText;
+    try {
+      const el = document.getElementById('score');
+      if (el) {
+        el.textContent = resultText;
+        el.removeAttribute('hidden');
+        el.classList?.remove('hidden','invisible');
+        el.style.display = 'block';
+        el.style.visibility = 'visible';
+        el.style.opacity = '1';
+      }
+      // 結果画面を一定時間保持（デフォルト 20s）
+      window.__RESULT_HOLD_UNTIL__ = Date.now() + (window.RESULT_HOLD_MS ?? 20000);
+    } catch(_) {}
 
     let rewardMessage = '';
     if (score === 10) {
@@ -474,6 +500,19 @@ function showResult() {
 function $(sel){ return document.querySelector(sel); }
 function show(el){ if(el) el.style.display=''; }
 function hide(el){ if(el) el.style.display='none'; }
+
+// optional helper: result text updater
+window.showResultText = function (text) {
+  try {
+    const el = document.getElementById('score');
+    if (el) {
+      el.textContent = text;
+      el.style.display = 'block';
+      el.style.visibility = 'visible';
+      el.style.opacity = '1';
+    }
+  } catch(_) {}
+};
 
 const __handleRestart = () => {
   // リスタート時にもボタン状態を完全リセット
