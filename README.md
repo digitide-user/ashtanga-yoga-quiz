@@ -312,4 +312,4 @@ jobs:
           echo "Deleted id: $NEW" >> $GITHUB_STEP_SUMMARY
 END qa-ranking.yml
 
-// テスト
+// test 20250917以降の残っていたらいつでも削除する
