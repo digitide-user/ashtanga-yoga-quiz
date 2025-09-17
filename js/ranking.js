@@ -30,22 +30,26 @@ async function getTop(limit = window.RANKING_TOP_LIMIT || 10) {
   return data ?? [];
 }
 
-// --- POST: スコア送信（本来の公開API）---
-async function submitScore({ name, score, total_questions, time_spent }) {
+// --- POST: スコア送信（公開API）---
+function toInt(v) { const n = Number(v); return Number.isFinite(n) ? Math.trunc(n) : null; }
+async function submitScore(input) {
   if (!ready()) return false;
-  try {
-    name = (typeof name === 'string' && name.trim()) ||
-           (localStorage.getItem('yogaquiz_name') || localStorage.getItem('yogaquiz_username') || '').trim() ||
-           'ゲスト';
-  } catch (_) {}
-  const { error } = await __SB__
-    .from("scores")
-    .insert([{ name, score, total_questions, time_spent }]);
-  if (error) {
-    console.warn("[RANK] POST fail", error);
-    return false;
+  const name = (
+    (input?.name ?? input?.username ?? window.currentUser ?? 'ゲスト')
+  ).toString().slice(0, 24);
+
+  const score = toInt(input?.score ?? input?.points ?? window.currentScore);
+  const total_questions = toInt(input?.total_questions ?? input?.totalQuestions ?? window.TOTAL_QUESTIONS ?? (Array.isArray(window.questions) ? window.questions.length : undefined));
+  const time_spent = toInt(input?.time_spent ?? input?.timeSpent ?? window.timeSpent ?? window.elapsedSeconds ?? window.totalTimeSpent);
+
+  if (score === null || total_questions === null || time_spent === null) {
+    console.warn('[RANK] missing fields', { score, total_questions, time_spent });
+    return false; // null は投げない
   }
-  console.log("[RANK] POST ok");
+
+  const { error } = await __SB__.from('scores').insert([{ name, score, total_questions, time_spent }]);
+  if (error) { console.warn('[RANK] POST fail', error); return false; }
+  console.log('[RANK] POST ok');
   return true;
 }
 
@@ -85,15 +89,20 @@ window.rankingSystem = Object.assign({}, window.rankingSystem, {
     }
 
     if (typeof window.submitScore !== 'function') {
-      window.submitScore = async function submitScore({ name, score, total_questions, time_spent }) {
+      window.submitScore = async function submitScoreCompat(input) {
         if (!sb) throw new Error('supabase client not ready');
-        try {
-          name = (typeof name === 'string' && name.trim()) ||
-                 (localStorage.getItem('yogaquiz_name') || localStorage.getItem('yogaquiz_username') || '').trim() ||
-                 'ゲスト';
-        } catch (_) {}
+        const name = (
+          (input?.name ?? input?.username ?? window.currentUser ?? 'ゲスト')
+        ).toString().slice(0, 24);
+        const score = toInt(input?.score ?? input?.points ?? window.currentScore);
+        const total_questions = toInt(input?.total_questions ?? input?.totalQuestions ?? window.TOTAL_QUESTIONS ?? (Array.isArray(window.questions) ? window.questions.length : undefined));
+        const time_spent = toInt(input?.time_spent ?? input?.timeSpent ?? window.timeSpent ?? window.elapsedSeconds ?? window.totalTimeSpent);
+        if (score === null || total_questions === null || time_spent === null) {
+          console.warn('[RANK] missing fields', { score, total_questions, time_spent });
+          return false;
+        }
         const { error } = await sb.from('scores').insert([{ name, score, total_questions, time_spent }]);
-        if (error) throw error;
+        if (error) { console.warn('[RANK] POST fail', error); return false; }
         console.log('[RANK] POST ok (ranking.js)');
         return true;
       };
@@ -108,39 +117,4 @@ window.rankingSystem = Object.assign({}, window.rankingSystem, {
   }
 })();
 
-// FORCE (safe): keep "詳細ランキングを見る" button visible & clickable (no MutationObserver)
-document.addEventListener('DOMContentLoaded', function () {
-  return; // TEMP: disable FORCE block (white screen hotfix)
-  try {
-    var tries = 0;
-
-    function forceShow() {
-      var btn = document.getElementById('open-ranking-btn');
-      if (!btn) return;
-
-      btn.removeAttribute('hidden');
-      btn.classList.remove('hidden');
-      btn.style.setProperty('display', 'inline-flex', 'important');
-      btn.style.setProperty('visibility', 'visible', 'important');
-      btn.style.setProperty('opacity', '1', 'important');
-
-      if (!btn.dataset.bound) {
-        btn.addEventListener('click', function (e) {
-          e.preventDefault();
-          if (typeof openRankingOverlay === 'function') openRankingOverlay();
-        }, { passive: false });
-        btn.dataset.bound = '1';
-      }
-    }
-
-    // 初回＋短時間の再適用で“消されても押し返す”
-    forceShow();
-    var interval = setInterval(function () {
-      forceShow();
-      if (++tries >= 20) clearInterval(interval); // 約6秒で停止
-    }, 300);
-  } catch (err) {
-    // fail-open（ここで落ちないように握りつぶす）
-  }
-});
-
+// removed legacy FORCE/hotfix overlay hooks
