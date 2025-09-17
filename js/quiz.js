@@ -1125,3 +1125,51 @@ try {
   }
 })();
 
+// HOTFIX: clone #score text into a sticky overlay so it stays visible even after re-renders
+document.addEventListener('DOMContentLoaded', function () {
+  (function stickyResultOverlay() {
+    var last = '';
+    function ensureStyle() {
+      if (document.getElementById('result-overlay-style')) return;
+      var style = document.createElement('style');
+      style.id = 'result-overlay-style';
+      style.textContent =
+        '#result-overlay{position:fixed;left:50%;top:24px;transform:translateX(-50%);' +
+        'padding:12px 16px;border-radius:12px;background:#fff;box-shadow:0 6px 24px rgba(0,0,0,.2);' +
+        'z-index:99999;font-weight:600;line-height:1.4;}' +
+        '#result-overlay .close{margin-left:12px;cursor:pointer;border:none;background:transparent;font-size:16px;line-height:1;}' +
+        '@media (max-width:480px){#result-overlay{left:8px;right:8px;transform:none;}}';
+      document.head.appendChild(style);
+    }
+    function showOverlay(text) {
+      ensureStyle();
+      var div = document.getElementById('result-overlay');
+      if (!div) {
+        div = document.createElement('div');
+        div.id = 'result-overlay';
+        var close = document.createElement('button');
+        close.className = 'close';
+        close.textContent = '×';
+        close.addEventListener('click', function(){ var s=document.getElementById('result-overlay-style'); s&&s.remove(); div.remove(); });
+        div.appendChild(close);
+        document.body.appendChild(div);
+      }
+      // テキスト部分は close ボタンの前に差し込む
+      var txt = document.createElement('span');
+      txt.textContent = text;
+      // 古いテキスト（span）を消して入れ替え
+      Array.from(div.querySelectorAll('span')).forEach(function(n){ n.remove(); });
+      div.insertBefore(txt, div.querySelector('.close'));
+    }
+    function tick() {
+      var el = document.getElementById('score');
+      var t = el && (el.textContent || '').trim();
+      if (t && t !== last) {
+        last = t;
+        showOverlay(t);
+      }
+    }
+    tick();
+    setInterval(tick, 250); // 軽量ポーリング
+  })();
+});
