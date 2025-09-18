@@ -1199,41 +1199,94 @@ try {
   };
 })();
 
-/* === Result persistence WRAPPER v4 (result bar + #score lock) === */
+/* === Result persistence WRAPPER v5 (bar + #score lock with shadow + keeper) === */
 (() => {
-  if (window.__RESULTBAR_PATCH_V4__) return;
-  window.__RESULTBAR_PATCH_V4__ = true;
+  if (window.__RESULTBAR_PATCH_V5__) return;
+  window.__RESULTBAR_PATCH_V5__ = true;
 
   const PAD = 44;
 
+  // ---- utils ----
+  function getScoreEl() {
+    return document.querySelector('#score') ||
+           document.getElementById('result') ||
+           document.querySelector('.score, .result');
+  }
+
+  // style for score lock (fallback)
   function ensureStyle() {
     if (document.getElementById('rb-score-lock-style')) return;
     const style = document.createElement('style');
     style.id = 'rb-score-lock-style';
     style.textContent = `
-      #score.rb-locked { display: block !important; visibility: visible !important; }
+      #score.rb-locked { display:block !important; visibility:visible !important; }
       #score.rb-locked:empty::before { content: attr(data-lock); white-space: pre-wrap; }
     `;
     document.head.appendChild(style);
   }
+
+  // shadow render keeps content even if light DOM is cleared
+  function renderScoreShadow(el, msg) {
+    if (!el) return;
+    if (!el.shadowRoot) {
+      const sr = el.attachShadow({ mode: 'open' });
+      const wrap = document.createElement('div');
+      wrap.className = 'rb-msg';
+      const css = document.createElement('style');
+      css.textContent = `
+        :host { all: initial; }
+        .rb-msg { all: revert; display:block; padding:0; margin:0; }
+      `;
+      sr.appendChild(css);
+      sr.appendChild(wrap);
+    }
+    const node = el.shadowRoot.querySelector('.rb-msg');
+    if (node) node.textContent = msg || '';
+    // Keep host visible against external styles
+    el.style.setProperty('display','block','important');
+    el.style.setProperty('visibility','visible','important');
+  }
+
   function lockScore(msg) {
     ensureStyle();
-    const el = document.querySelector('#score');
-    if (!el) return;
-    // 元のメッセージを明示セット（消されても :empty::before で出す）
-    if (msg) { try { el.textContent = msg; } catch(e){} }
+    const el = getScoreEl();
+    if (!el) return console.warn('[RESULTBAR] #score not found');
+    // set both light DOM and shadow (shadow survives clears)
+    try { el.textContent = msg || el.textContent || ''; } catch {}
     el.dataset.lock = msg || el.textContent || '';
     el.classList.add('rb-locked');
+    renderScoreShadow(el, el.dataset.lock);
     console.log('[RESULTBAR] lock #score');
+
+    // start a tiny keeper during hold (no observers, stops on restart)
+    if (window.__RB_KEEPER) clearInterval(window.__RB_KEEPER);
+    window.__RB_KEEPER = setInterval(() => {
+      if (!window.__QUIZ_RESULT_HOLD__) { clearInterval(window.__RB_KEEPER); window.__RB_KEEPER = null; return; }
+      const e = getScoreEl();
+      if (!e) return;
+      // Re-assert visibility & content
+      e.style.setProperty('display','block','important');
+      e.style.setProperty('visibility','visible','important');
+      if (!e.dataset.lock || !e.classList.contains('rb-locked')) {
+        e.dataset.lock = (e.textContent || '').trim();
+        e.classList.add('rb-locked');
+      }
+      renderScoreShadow(e, e.dataset.lock || (e.textContent || '').trim());
+    }, 120);
+    console.log('[RESULTBAR] keeper start');
   }
+
   function unlockScore() {
-    const el = document.querySelector('#score');
+    const el = getScoreEl();
+    if (window.__RB_KEEPER) { clearInterval(window.__RB_KEEPER); window.__RB_KEEPER = null; console.log('[RESULTBAR] keeper stop'); }
     if (!el) return;
     el.classList.remove('rb-locked');
     delete el.dataset.lock;
+    if (el.shadowRoot) { el.shadowRoot.innerHTML = ''; }
     console.log('[RESULTBAR] unlock #score');
   }
 
+  // ---- result bar (same as before, force-visible) ----
   function forceStyle(el) {
     const s = el.style;
     s.setProperty('position','fixed','important');
@@ -1253,19 +1306,15 @@ try {
   }
   function ensureBar() {
     let bar = document.getElementById('result-bar');
-    if (!bar) {
-      bar = document.createElement('div'); bar.id = 'result-bar';
-      document.body.appendChild(bar);
-    }
-    forceStyle(bar);
-    bar.setAttribute('role','status'); bar.setAttribute('aria-live','polite');
+    if (!bar) { bar = document.createElement('div'); bar.id = 'result-bar'; document.body.appendChild(bar); }
+    forceStyle(bar); bar.setAttribute('role','status'); bar.setAttribute('aria-live','polite');
     return bar;
   }
   function showBar(text) {
     const bar = ensureBar(); bar.textContent = text || ''; forceStyle(bar);
     const html = document.documentElement;
     if (!html.hasAttribute('data-has-result-bar-padding')) {
-      const cur = parseInt(getComputedStyle(document.body).paddingTop || '0',10);
+      const cur = parseInt(getComputedStyle(document.body).paddingTop || '0', 10);
       document.body.style.paddingTop = (cur + PAD) + 'px';
       html.setAttribute('data-has-result-bar-padding','1');
     }
@@ -1277,7 +1326,7 @@ try {
     if (bar) bar.style.setProperty('display','none','important');
     const html = document.documentElement;
     if (html && html.hasAttribute('data-has-result-bar-padding')) {
-      const cur = parseInt(getComputedStyle(document.body).paddingTop || '0',10);
+      const cur = parseInt(getComputedStyle(document.body).paddingTop || '0', 10);
       document.body.style.paddingTop = Math.max(0, cur - PAD) + 'px';
       html.removeAttribute('data-has-result-bar-padding');
     }
@@ -1329,8 +1378,8 @@ try {
     window.showResult = function (...args) {
       const ret = _showResult.apply(this, args);
       try {
-        const scoreEl = document.querySelector('#score');
-        const msg = scoreEl && (scoreEl.textContent || '').trim();
+        const el = getScoreEl();
+        const msg = el && (el.textContent || '').trim();
         window.__QUIZ_RESULT_HOLD__ = true;
         showBar(msg || 'クイズが完了しました');
         lockScore(msg || 'クイズが完了しました');
