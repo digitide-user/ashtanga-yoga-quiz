@@ -1198,3 +1198,107 @@ try {
     }
   };
 })();
+
+/* === Result persistence SAFE WRAPPER (drop-in) === */
+(() => {
+  if (window.__RESULTBAR_PATCH__) return;
+  window.__RESULTBAR_PATCH__ = true;
+
+  const PAD = 44;
+
+  function ensureBar() {
+    let bar = document.getElementById('result-bar');
+    if (!bar) {
+      bar = document.createElement('div');
+      bar.id = 'result-bar';
+      bar.setAttribute('style', [
+        'position:fixed','top:0','left:0','right:0','z-index:9999',
+        'display:none','padding:10px 12px','font-size:14px','line-height:1.3',
+        'text-align:center','background:rgba(0,0,0,0.85)','color:#fff',
+        'backdrop-filter:saturate(120%) blur(6px)','-webkit-font-smoothing:antialiased'
+      ].join(';'));
+      bar.setAttribute('role','status');
+      bar.setAttribute('aria-live','polite');
+      document.body.appendChild(bar);
+    }
+    return bar;
+  }
+  function showBar(text) {
+    const bar = ensureBar();
+    bar.textContent = text || '';
+    bar.style.display = 'block';
+    const html = document.documentElement;
+    if (!html.hasAttribute('data-has-result-bar-padding')) {
+      const cur = parseInt(getComputedStyle(document.body).paddingTop || '0', 10);
+      document.body.style.paddingTop = (cur + PAD) + 'px';
+      html.setAttribute('data-has-result-bar-padding','1');
+    }
+    console.log('[RESULTBAR] show');
+  }
+  function hideBar() {
+    const bar = document.getElementById('result-bar');
+    if (bar) bar.style.display = 'none';
+    const html = document.documentElement;
+    if (html && html.hasAttribute('data-has-result-bar-padding')) {
+      const cur = parseInt(getComputedStyle(document.body).paddingTop || '0', 10);
+      document.body.style.paddingTop = Math.max(0, cur - PAD) + 'px';
+      html.removeAttribute('data-has-result-bar-padding');
+    }
+    console.log('[RESULTBAR] hide');
+  }
+
+  if (typeof window.__QUIZ_RESULT_HOLD__ === 'undefined') window.__QUIZ_RESULT_HOLD__ = false;
+
+  // ---- wrap showResult: after original draws #score, mirror it into bar & hold ----
+  const _showResult = window.showResult;
+  if (typeof _showResult === 'function') {
+    window.showResult = function (...args) {
+      const ret = _showResult.apply(this, args);
+      try {
+        const scoreEl = document.querySelector('#score');
+        const msg = scoreEl && (scoreEl.textContent || '').trim();
+        if (msg) {
+          window.__QUIZ_RESULT_HOLD__ = true;
+          showBar(msg);
+        } else {
+          console.warn('[RESULTBAR] #score empty after showResult');
+        }
+      } catch (e) { console.warn('[RESULTBAR] wrap showResult error', e); }
+      return ret;
+    };
+  } else {
+    console.warn('[RESULTBAR] showResult not found (wrapper will only handle restart)');
+  }
+
+  // ---- wrap loadQuiz: block auto init while result is held unless {force:true} ----
+  const _loadQuiz = window.loadQuiz;
+  if (typeof _loadQuiz === 'function') {
+    window.loadQuiz = function (options) {
+      if (window.__QUIZ_RESULT_HOLD__ && !(options && options.force)) {
+        console.log('[RESULTBAR] blocked loadQuiz (holding result)');
+        return;
+      }
+      return _loadQuiz.apply(this, arguments);
+    };
+  } else {
+    console.warn('[RESULTBAR] loadQuiz not found');
+  }
+
+  // ---- unify "もう一度" click -> release hold, hide bar, force reload ----
+  document.addEventListener('click', (e) => {
+    const t = e.target && (e.target.closest('button, a, [role="button"], .btn') || e.target);
+    if (!t) return;
+    const txt = (t.textContent || '').trim();
+    if (t.matches('#retry, #restart, .retry, .restart, [data-restart]') || txt === 'もう一度') {
+      e.preventDefault();
+      window.__QUIZ_RESULT_HOLD__ = false;
+      hideBar();
+      if (typeof window.loadQuiz === 'function') {
+        window.loadQuiz({ force: true });
+      } else {
+        location.reload(); // 最終フォールバック
+      }
+    }
+  }, { capture: true });
+})();
+
