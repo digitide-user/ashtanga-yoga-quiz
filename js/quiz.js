@@ -1199,65 +1199,85 @@ try {
   };
 })();
 
-/* === Result persistence SAFE WRAPPER v2 (force visible) === */
+/* === Result persistence WRAPPER v4 (result bar + #score lock) === */
 (() => {
-  if (window.__RESULTBAR_PATCH_V2__) return;
-  window.__RESULTBAR_PATCH_V2__ = true;
+  if (window.__RESULTBAR_PATCH_V4__) return;
+  window.__RESULTBAR_PATCH_V4__ = true;
 
   const PAD = 44;
 
-  function forceStyle(el) {
-    const s = el.style;
-    s.setProperty('position', 'fixed', 'important');
-    s.setProperty('top', '0', 'important');
-    s.setProperty('left', '0', 'important');
-    s.setProperty('right', '0', 'important');
-    s.setProperty('z-index', '2147483647', 'important'); // 最前面に
-    s.setProperty('display', 'block', 'important');      // どんなCSSでも表示
-    s.setProperty('padding', '10px 12px', 'important');
-    s.setProperty('font-size', '14px', 'important');
-    s.setProperty('line-height', '1.3', 'important');
-    s.setProperty('text-align', 'center', 'important');
-    s.setProperty('background', 'rgba(0,0,0,0.85)', 'important');
-    s.setProperty('color', '#fff', 'important');
-    s.setProperty('pointer-events', 'none', 'important'); // 下のUIが押せるように
-    s.setProperty('-webkit-font-smoothing', 'antialiased', 'important');
+  function ensureStyle() {
+    if (document.getElementById('rb-score-lock-style')) return;
+    const style = document.createElement('style');
+    style.id = 'rb-score-lock-style';
+    style.textContent = `
+      #score.rb-locked { display: block !important; visibility: visible !important; }
+      #score.rb-locked:empty::before { content: attr(data-lock); white-space: pre-wrap; }
+    `;
+    document.head.appendChild(style);
+  }
+  function lockScore(msg) {
+    ensureStyle();
+    const el = document.querySelector('#score');
+    if (!el) return;
+    // 元のメッセージを明示セット（消されても :empty::before で出す）
+    if (msg) { try { el.textContent = msg; } catch(e){} }
+    el.dataset.lock = msg || el.textContent || '';
+    el.classList.add('rb-locked');
+    console.log('[RESULTBAR] lock #score');
+  }
+  function unlockScore() {
+    const el = document.querySelector('#score');
+    if (!el) return;
+    el.classList.remove('rb-locked');
+    delete el.dataset.lock;
+    console.log('[RESULTBAR] unlock #score');
   }
 
+  function forceStyle(el) {
+    const s = el.style;
+    s.setProperty('position','fixed','important');
+    s.setProperty('top','0','important');
+    s.setProperty('left','0','important');
+    s.setProperty('right','0','important');
+    s.setProperty('z-index','2147483647','important');
+    s.setProperty('display','block','important');
+    s.setProperty('padding','10px 12px','important');
+    s.setProperty('font-size','14px','important');
+    s.setProperty('line-height','1.3','important');
+    s.setProperty('text-align','center','important');
+    s.setProperty('background','rgba(0,0,0,0.85)','important');
+    s.setProperty('color','#fff','important');
+    s.setProperty('pointer-events','none','important');
+    s.setProperty('-webkit-font-smoothing','antialiased','important');
+  }
   function ensureBar() {
     let bar = document.getElementById('result-bar');
     if (!bar) {
-      bar = document.createElement('div');
-      bar.id = 'result-bar';
+      bar = document.createElement('div'); bar.id = 'result-bar';
       document.body.appendChild(bar);
     }
     forceStyle(bar);
-    bar.setAttribute('role', 'status');
-    bar.setAttribute('aria-live', 'polite');
+    bar.setAttribute('role','status'); bar.setAttribute('aria-live','polite');
     return bar;
   }
-
   function showBar(text) {
-    const bar = ensureBar();
-    bar.textContent = text || '';
-    forceStyle(bar); // 念押し
+    const bar = ensureBar(); bar.textContent = text || ''; forceStyle(bar);
     const html = document.documentElement;
     if (!html.hasAttribute('data-has-result-bar-padding')) {
-      const cur = parseInt(getComputedStyle(document.body).paddingTop || '0', 10);
+      const cur = parseInt(getComputedStyle(document.body).paddingTop || '0',10);
       document.body.style.paddingTop = (cur + PAD) + 'px';
-      html.setAttribute('data-has-result-bar-padding', '1');
+      html.setAttribute('data-has-result-bar-padding','1');
     }
-    const cs = getComputedStyle(bar);
-    const rect = bar.getBoundingClientRect();
+    const cs = getComputedStyle(bar), rect = bar.getBoundingClientRect();
     console.log('[RESULTBAR] show', { display: cs.display, visibility: cs.visibility, zIndex: cs.zIndex, rect });
   }
-
   function hideBar() {
     const bar = document.getElementById('result-bar');
-    if (bar) bar.style.setProperty('display', 'none', 'important');
+    if (bar) bar.style.setProperty('display','none','important');
     const html = document.documentElement;
     if (html && html.hasAttribute('data-has-result-bar-padding')) {
-      const cur = parseInt(getComputedStyle(document.body).paddingTop || '0', 10);
+      const cur = parseInt(getComputedStyle(document.body).paddingTop || '0',10);
       document.body.style.paddingTop = Math.max(0, cur - PAD) + 'px';
       html.removeAttribute('data-has-result-bar-padding');
     }
@@ -1266,7 +1286,44 @@ try {
 
   if (typeof window.__QUIZ_RESULT_HOLD__ === 'undefined') window.__QUIZ_RESULT_HOLD__ = false;
 
-  // ---- wrap showResult: #score の描画後に捕まえてバー表示 ----
+  function restartQuiz(e) {
+    if (e) e.preventDefault();
+    window.__QUIZ_RESULT_HOLD__ = false;
+    hideBar();
+    unlockScore();
+    if (typeof window.loadQuiz === 'function') {
+      window.loadQuiz({ force: true });
+    } else {
+      const base = location.href.split('#')[0].split('?')[0];
+      location.replace(base + '?restart=' + Date.now());
+    }
+    console.log('[RESULTBAR] restart triggered');
+  }
+
+  function isRestartElement(el) {
+    if (!el) return false;
+    const id = (el.id || '').toLowerCase();
+    const cls = (el.className || '').toString().toLowerCase();
+    const val = (el.value || '').trim();
+    const txt = (el.textContent || '').trim();
+    const hitIdCls = /restart|retry|again|replay|try|もう一度|やり直/i.test(id + ' ' + cls);
+    const hitText  = /もう一度|やり直|再挑戦|retry|restart|again|replay/i.test(val || txt);
+    return hitIdCls || hitText;
+  }
+  function bindRestartButtons() {
+    const nodes = Array.from(document.querySelectorAll(
+      'button, a, [role="button"], .btn, input[type="button"], input[type="submit"], [data-restart]'
+    ));
+    const targets = nodes.filter(isRestartElement);
+    let bound = 0;
+    for (const el of targets) {
+      if (el.dataset.rbBound === '1') continue;
+      el.addEventListener('click', restartQuiz, { capture: true });
+      el.dataset.rbBound = '1'; bound++;
+    }
+    console.log('[RESULTBAR] bind restart buttons:', { candidates: nodes.length, targets: targets.length, bound });
+  }
+
   const _showResult = window.showResult;
   if (typeof _showResult === 'function') {
     window.showResult = function (...args) {
@@ -1276,14 +1333,18 @@ try {
         const msg = scoreEl && (scoreEl.textContent || '').trim();
         window.__QUIZ_RESULT_HOLD__ = true;
         showBar(msg || 'クイズが完了しました');
+        lockScore(msg || 'クイズが完了しました');
+        bindRestartButtons();
+        setTimeout(bindRestartButtons, 0);
+        setTimeout(bindRestartButtons, 80);
+        setTimeout(bindRestartButtons, 160);
       } catch (e) { console.warn('[RESULTBAR] wrap showResult error', e); }
       return ret;
     };
   } else {
-    console.warn('[RESULTBAR] showResult not found (wrapper will only handle restart)');
+    console.warn('[RESULTBAR] showResult not found (wrapper will only handle global delegation)');
   }
 
-  // ---- wrap loadQuiz: hold 中はブロック（force 指定のみ許可）----
   const _loadQuiz = window.loadQuiz;
   if (typeof _loadQuiz === 'function') {
     window.loadQuiz = function (options) {
@@ -1297,22 +1358,9 @@ try {
     console.warn('[RESULTBAR] loadQuiz not found');
   }
 
-  // ---- 「もう一度」クリックの統一（捕捉できない場合は強制リロード）----
   document.addEventListener('click', (e) => {
-    const t = e.target && (e.target.closest('button, a, [role="button"], .btn, input[type="button"], input[type="submit"]') || e.target);
-    if (!t) return;
-    const txt = (t.value || t.textContent || '').trim();
-    if (t.matches('#retry, #restart, .retry, .restart, [data-restart]') || txt === 'もう一度') {
-      e.preventDefault();
-      window.__QUIZ_RESULT_HOLD__ = false;
-      hideBar();
-      if (typeof window.loadQuiz === 'function') {
-        window.loadQuiz({ force: true });
-      } else {
-        // キャッシュ無視で確実に再読み込み
-        const base = location.href.split('#')[0].split('?')[0];
-        location.replace(base + '?restart=' + Date.now());
-      }
-    }
+    const t = e.target && (e.target.closest('button, a, [role="button"], .btn, input[type="button"], input[type="submit"], [data-restart]') || e.target);
+    if (isRestartElement(t)) restartQuiz(e);
   }, { capture: true });
 })();
+
