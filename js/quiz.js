@@ -1199,45 +1199,62 @@ try {
   };
 })();
 
-/* === Result persistence SAFE WRAPPER (drop-in) === */
+/* === Result persistence SAFE WRAPPER v2 (force visible) === */
 (() => {
-  if (window.__RESULTBAR_PATCH__) return;
-  window.__RESULTBAR_PATCH__ = true;
+  if (window.__RESULTBAR_PATCH_V2__) return;
+  window.__RESULTBAR_PATCH_V2__ = true;
 
   const PAD = 44;
+
+  function forceStyle(el) {
+    const s = el.style;
+    s.setProperty('position', 'fixed', 'important');
+    s.setProperty('top', '0', 'important');
+    s.setProperty('left', '0', 'important');
+    s.setProperty('right', '0', 'important');
+    s.setProperty('z-index', '2147483647', 'important'); // 最前面に
+    s.setProperty('display', 'block', 'important');      // どんなCSSでも表示
+    s.setProperty('padding', '10px 12px', 'important');
+    s.setProperty('font-size', '14px', 'important');
+    s.setProperty('line-height', '1.3', 'important');
+    s.setProperty('text-align', 'center', 'important');
+    s.setProperty('background', 'rgba(0,0,0,0.85)', 'important');
+    s.setProperty('color', '#fff', 'important');
+    s.setProperty('pointer-events', 'none', 'important'); // 下のUIが押せるように
+    s.setProperty('-webkit-font-smoothing', 'antialiased', 'important');
+  }
 
   function ensureBar() {
     let bar = document.getElementById('result-bar');
     if (!bar) {
       bar = document.createElement('div');
       bar.id = 'result-bar';
-      bar.setAttribute('style', [
-        'position:fixed','top:0','left:0','right:0','z-index:9999',
-        'display:none','padding:10px 12px','font-size:14px','line-height:1.3',
-        'text-align:center','background:rgba(0,0,0,0.85)','color:#fff',
-        'backdrop-filter:saturate(120%) blur(6px)','-webkit-font-smoothing:antialiased'
-      ].join(';'));
-      bar.setAttribute('role','status');
-      bar.setAttribute('aria-live','polite');
       document.body.appendChild(bar);
     }
+    forceStyle(bar);
+    bar.setAttribute('role', 'status');
+    bar.setAttribute('aria-live', 'polite');
     return bar;
   }
+
   function showBar(text) {
     const bar = ensureBar();
     bar.textContent = text || '';
-    bar.style.display = 'block';
+    forceStyle(bar); // 念押し
     const html = document.documentElement;
     if (!html.hasAttribute('data-has-result-bar-padding')) {
       const cur = parseInt(getComputedStyle(document.body).paddingTop || '0', 10);
       document.body.style.paddingTop = (cur + PAD) + 'px';
-      html.setAttribute('data-has-result-bar-padding','1');
+      html.setAttribute('data-has-result-bar-padding', '1');
     }
-    console.log('[RESULTBAR] show');
+    const cs = getComputedStyle(bar);
+    const rect = bar.getBoundingClientRect();
+    console.log('[RESULTBAR] show', { display: cs.display, visibility: cs.visibility, zIndex: cs.zIndex, rect });
   }
+
   function hideBar() {
     const bar = document.getElementById('result-bar');
-    if (bar) bar.style.display = 'none';
+    if (bar) bar.style.setProperty('display', 'none', 'important');
     const html = document.documentElement;
     if (html && html.hasAttribute('data-has-result-bar-padding')) {
       const cur = parseInt(getComputedStyle(document.body).paddingTop || '0', 10);
@@ -1249,7 +1266,7 @@ try {
 
   if (typeof window.__QUIZ_RESULT_HOLD__ === 'undefined') window.__QUIZ_RESULT_HOLD__ = false;
 
-  // ---- wrap showResult: after original draws #score, mirror it into bar & hold ----
+  // ---- wrap showResult: #score の描画後に捕まえてバー表示 ----
   const _showResult = window.showResult;
   if (typeof _showResult === 'function') {
     window.showResult = function (...args) {
@@ -1257,12 +1274,8 @@ try {
       try {
         const scoreEl = document.querySelector('#score');
         const msg = scoreEl && (scoreEl.textContent || '').trim();
-        if (msg) {
-          window.__QUIZ_RESULT_HOLD__ = true;
-          showBar(msg);
-        } else {
-          console.warn('[RESULTBAR] #score empty after showResult');
-        }
+        window.__QUIZ_RESULT_HOLD__ = true;
+        showBar(msg || 'クイズが完了しました');
       } catch (e) { console.warn('[RESULTBAR] wrap showResult error', e); }
       return ret;
     };
@@ -1270,7 +1283,7 @@ try {
     console.warn('[RESULTBAR] showResult not found (wrapper will only handle restart)');
   }
 
-  // ---- wrap loadQuiz: block auto init while result is held unless {force:true} ----
+  // ---- wrap loadQuiz: hold 中はブロック（force 指定のみ許可）----
   const _loadQuiz = window.loadQuiz;
   if (typeof _loadQuiz === 'function') {
     window.loadQuiz = function (options) {
@@ -1284,11 +1297,11 @@ try {
     console.warn('[RESULTBAR] loadQuiz not found');
   }
 
-  // ---- unify "もう一度" click -> release hold, hide bar, force reload ----
+  // ---- 「もう一度」クリックの統一（捕捉できない場合は強制リロード）----
   document.addEventListener('click', (e) => {
-    const t = e.target && (e.target.closest('button, a, [role="button"], .btn') || e.target);
+    const t = e.target && (e.target.closest('button, a, [role="button"], .btn, input[type="button"], input[type="submit"]') || e.target);
     if (!t) return;
-    const txt = (t.textContent || '').trim();
+    const txt = (t.value || t.textContent || '').trim();
     if (t.matches('#retry, #restart, .retry, .restart, [data-restart]') || txt === 'もう一度') {
       e.preventDefault();
       window.__QUIZ_RESULT_HOLD__ = false;
@@ -1296,9 +1309,10 @@ try {
       if (typeof window.loadQuiz === 'function') {
         window.loadQuiz({ force: true });
       } else {
-        location.reload(); // 最終フォールバック
+        // キャッシュ無視で確実に再読み込み
+        const base = location.href.split('#')[0].split('?')[0];
+        location.replace(base + '?restart=' + Date.now());
       }
     }
   }, { capture: true });
 })();
-
