@@ -1,5 +1,12 @@
 # アシュタンガ ヨガ アーサナクイズ — 開発・運用ハンドブック（決定版 / Supabase 版）
 
+> Rollback Note (2025-09-18)
+> 現在このブランチ（rollback/pre-supabase）では、ランキング機能を完全無効化し pre-Supabase 相当の挙動で運用しています。
+> - `window.RANKING_ENABLED = false`
+> - `js/ranking.js` はスタブが早期 return（Supabase へは一切アクセスしません）
+> - 「詳細ランキングを見る」は UI 非表示
+> 復帰する場合は `window.RANKING_ENABLED = true` に戻し、スタブの早期 return ブロックを削除してください。
+
 このファイルだけ見れば、初見の AI/Coder（=codex）でも全体を把握し、即作業できます。
 
 ---
@@ -311,4 +318,3 @@ jobs:
 
           echo "Deleted id: $NEW" >> $GITHUB_STEP_SUMMARY
 END qa-ranking.yml
-
