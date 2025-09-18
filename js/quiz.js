@@ -1301,3 +1301,163 @@ try {
 })();
 
 /* === Result persistence WRAPPER v5 removed as per cleanup (no overlays/observers/storage) === */
+
+/* === RESULT HOLD v6: keep result message visible + reliable restart === */
+(() => {
+  if (window.__RESULT_HOLD_PATCH__) return;
+  window.__RESULT_HOLD_PATCH__ = true;
+
+  let HOLD = false;
+  let msgCache = '';
+
+  function ensureBar() {
+    let bar = document.getElementById('result-bar');
+    if (!bar) {
+      bar = document.createElement('div');
+      bar.id = 'result-bar';
+      const s = bar.style;
+      s.position = 'fixed'; s.top = '0'; s.left = '0'; s.right = '0';
+      s.zIndex = '2147483647'; s.display = 'none'; s.padding = '10px 12px';
+      s.fontSize = '14px'; s.lineHeight = '1.3'; s.textAlign = 'center';
+      s.background = 'rgba(0,0,0,0.85)'; s.color = '#fff'; s.pointerEvents = 'none';
+      s.webkitFontSmoothing = 'antialiased';
+      bar.setAttribute('role','status'); bar.setAttribute('aria-live','polite');
+      document.body.appendChild(bar);
+    }
+    return bar;
+  }
+  function showBar(text) {
+    const bar = ensureBar();
+    bar.textContent = text || '';
+    bar.style.display = 'block';
+    const html = document.documentElement;
+    if (!html.hasAttribute('data-has-result-bar-padding')) {
+      const cur = parseInt(getComputedStyle(document.body).paddingTop || '0', 10);
+      document.body.style.paddingTop = (cur + 44) + 'px';
+      html.setAttribute('data-has-result-bar-padding','1');
+    }
+    console.log('[HOLD] bar show:', bar.textContent);
+  }
+  function hideBar() {
+    const bar = document.getElementById('result-bar');
+    if (bar) bar.style.display = 'none';
+    const html = document.documentElement;
+    if (html && html.hasAttribute('data-has-result-bar-padding')) {
+      const cur = parseInt(getComputedStyle(document.body).paddingTop || '0', 10);
+      document.body.style.paddingTop = Math.max(0, cur - 44) + 'px';
+      html.removeAttribute('data-has-result-bar-padding');
+    }
+    console.log('[HOLD] bar hide');
+  }
+
+  function resultEl() {
+    return document.querySelector('#result, #score, .result-text, .score, .result-message, .result');
+  }
+  function ensureVisible(el) {
+    let n = el;
+    while (n && n !== document.body) {
+      if (n.style) {
+        n.style.setProperty('display','block','important');
+        n.style.setProperty('visibility','visible','important');
+        n.style.removeProperty('opacity');
+      }
+      n = n.parentElement;
+    }
+  }
+  function writeMessage(el, msg) {
+    if (!el) return;
+    el.textContent = msg;
+    ensureVisible(el);
+  }
+
+  // —— keep the message even if other code clears or hides it (active only while HOLD)
+  let mo = null;
+  function startObserver() {
+    stopObserver();
+    mo = new MutationObserver(() => {
+      if (!HOLD) return;
+      const el = resultEl();
+      if (!el) return;
+      const cur = (el.textContent || '').trim();
+      if (!cur) writeMessage(el, msgCache);
+      else msgCache = cur;
+      ensureVisible(el);
+    });
+    mo.observe(document.body, { childList: true, subtree: true, characterData: true });
+    console.log('[HOLD] observer start');
+  }
+  function stopObserver() {
+    if (mo) { mo.disconnect(); mo = null; console.log('[HOLD] observer stop'); }
+  }
+
+  function holdStart(msg) {
+    HOLD = true;
+    msgCache = (msg && String(msg).trim()) || msgCache || 'クイズが完了しました';
+    const el = resultEl();
+    if (el) writeMessage(el, msgCache);
+    showBar(msgCache);
+    startObserver();
+  }
+  function holdStop() {
+    HOLD = false;
+    hideBar();
+    stopObserver();
+    const el = resultEl();
+    if (el) el.textContent = '';
+  }
+
+  // —— wrap showResult (if available)
+  const _sr = window.showResult;
+  if (typeof _sr === 'function') {
+    window.showResult = function (...args) {
+      const ret = _sr.apply(this, args);
+      try {
+        const el = resultEl();
+        let msg = el ? (el.textContent || '').trim() : '';
+        if (!msg && window.__lastResultMessage) msg = window.__lastResultMessage;
+        holdStart(msg || '結果');
+      } catch (e) { console.warn('[HOLD] showResult wrap error', e); }
+      return ret;
+    };
+  }
+
+  // —— guard loadQuiz (block auto reinit while HOLD; allow {force:true})
+  const _lq = window.loadQuiz;
+  if (typeof _lq === 'function') {
+    window.loadQuiz = function (options) {
+      if (HOLD && !(options && options.force)) {
+        console.log('[HOLD] blocked loadQuiz');
+        return;
+      }
+      return _lq.apply(this, arguments);
+    };
+  }
+
+  // —— robust restart detection (works through shadow/composed paths)
+  function isRestartNode(node) {
+    if (!node || node.nodeType !== 1) return false;
+    const txt = (node.value || node.textContent || '').trim();
+    const id  = (node.id || '').toLowerCase();
+    const cls = (node.className || '').toString().toLowerCase();
+    if (/もう一度|やり直|再挑戦|retry|restart|again|replay/i.test(txt)) return true;
+    if (/(^|[-_])restart|retry|again/.test(id) || /(restart|retry|again)/.test(cls)) return true;
+    if (node.hasAttribute && node.hasAttribute('data-restart')) return true;
+    return false;
+  }
+  function handleRestart(e) {
+    if (!HOLD) return;
+    const path = e.composedPath ? e.composedPath() : (function(){ const a=[]; let n=e.target; while(n){ a.push(n); n=n.parentNode||n.host; } return a; })();
+    const hit = path.find(isRestartNode);
+    if (!hit) return;
+    e.preventDefault();
+    e.stopPropagation();
+    e.stopImmediatePropagation && e.stopImmediatePropagation();
+    console.log('[HOLD] restart via', hit);
+    holdStop();
+    if (typeof window.loadQuiz === 'function') window.loadQuiz({ force: true });
+    else location.reload();
+  }
+  ['click','pointerdown','touchend','mousedown','keyup'].forEach(type => {
+    document.addEventListener(type, handleRestart, { capture: true });
+  });
+})();
