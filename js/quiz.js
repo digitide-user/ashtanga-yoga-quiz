@@ -1131,3 +1131,59 @@ try {
 })();
 
 // removed HOTFIX: result overlay & sessionStorage persistence
+
+/* ---------- [Result Bar Helpers] ---------- */
+(function () {
+  function ensureResultBar() {
+    let bar = document.getElementById('result-bar');
+    if (!bar) {
+      bar = document.createElement('div');
+      bar.id = 'result-bar';
+      // インライン最小スタイル（広域CSSを汚さない）
+      bar.setAttribute('style', [
+        'position:fixed',
+        'top:0',
+        'left:0',
+        'right:0',
+        'z-index:9999',
+        'display:none',
+        'padding:10px 12px',
+        'font-size:14px',
+        'line-height:1.3',
+        'text-align:center',
+        'background:rgba(0,0,0,0.85)',
+        'color:#fff',
+        'backdrop-filter:saturate(120%) blur(6px)',
+        '-webkit-font-smoothing:antialiased',
+      ].join(';'));
+      bar.setAttribute('role', 'status');
+      bar.setAttribute('aria-live', 'polite');
+      document.body.appendChild(bar);
+    }
+    return bar;
+  }
+
+  window.showResultBar = function (text) {
+    const bar = ensureResultBar();
+    bar.textContent = text || '';
+    bar.style.display = 'block';
+    // バーで隠れないよう最小の余白を付与（重複付与防止）
+    const html = document.documentElement;
+    if (!html.hasAttribute('data-has-result-bar-padding')) {
+      const cur = parseInt(getComputedStyle(document.body).paddingTop || '0', 10);
+      document.body.style.paddingTop = (cur + 44) + 'px';
+      html.setAttribute('data-has-result-bar-padding', '1');
+    }
+  };
+
+  window.hideResultBar = function () {
+    const bar = document.getElementById('result-bar');
+    if (bar) bar.style.display = 'none';
+    const html = document.documentElement;
+    if (html && html.hasAttribute('data-has-result-bar-padding')) {
+      const cur = parseInt(getComputedStyle(document.body).paddingTop || '0', 10);
+      document.body.style.paddingTop = Math.max(0, cur - 44) + 'px';
+      html.removeAttribute('data-has-result-bar-padding');
+    }
+  };
+})();
