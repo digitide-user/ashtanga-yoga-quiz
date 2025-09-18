@@ -1,4 +1,26 @@
 /* js/ranking.js ー ファイル全置き換え推奨 */
+// ===== RANKING DISABLED (pre-Supabase rollback) =====
+if (window.RANKING_ENABLED === false) {
+  console.log("[RANK] disabled: running in pre-Supabase rollback mode");
+  async function getTop(limit = 10) {
+    console.log("[RANK] GET (noop) → []");
+    return [];
+  }
+  async function submitScore({ name, score, total_questions, time_spent }) {
+    console.log(
+      "[RANK] POST (noop) name=%s score=%s total=%s time=%s",
+      name, score, total_questions, time_spent
+    );
+    return true;
+  }
+  window.rankingSystem = { getTop, submitScore };
+  // 以降の Supabase 初期化・通信処理は一切実行しない
+  // ===================================================
+  // ここで return してファイル末尾までスキップ
+  // ===================================================
+  // eslint-disable-next-line no-useless-return
+  return;
+}
 
 // --- Supabase client (singleton) ---
 const __SB__ =

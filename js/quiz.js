@@ -551,6 +551,16 @@ const __handleRestart = () => {
 
 // share button binding moved to guarded block above
 
+// Hide ranking button if ranking disabled (rollback mode)
+document.addEventListener('DOMContentLoaded', () => {
+  try {
+    if (window.RANKING_ENABLED === false) {
+      const btn = document.querySelector('#open-ranking-btn, .open-ranking, [data-open-ranking]');
+      if (btn) btn.style.display = 'none';
+    }
+  } catch (_) {}
+});
+
 // 最初のクイズをセットアップして読み込む
 setupQuiz();
 // ===== RANKING BOOTSTRAP (self-contained) =====
