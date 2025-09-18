@@ -135,7 +135,8 @@ function hideResultBar() {
   }
 }
 function getResultMessageEl() {
-  return document.querySelector('#score, #result, .result-text, .score, .result');
+  // リポジトリの実装に合わせて幅広く対応
+  return document.querySelector('#result, .result-message, .result-text, .result, #score, .score');
 }
 function setResultMessageVisible(message) {
   const el = getResultMessageEl();
@@ -150,6 +151,21 @@ function setResultMessageVisible(message) {
       panel.style.removeProperty('opacity');
     }
   }
+}
+// spec互換のAPI名（エイリアス）
+function showResultMessage(text) {
+  setResultMessageVisible(text);
+}
+function bindRestart(handler) {
+  const byText = Array.from(document.querySelectorAll('button, a, [role="button"], input[type="button"], input[type="submit"]'))
+    .find(el => /もう一度|やり直|再挑戦|retry|restart|again|replay/i.test((el.value || el.textContent || '').trim()));
+  const bySel = document.querySelector('#retry, #restart, .retry, .restart, [data-restart]');
+  const btn = bySel || byText;
+  if (btn) {
+    btn.onclick = (e) => { try { e.preventDefault(); } catch(_) {} handler(); };
+    return true;
+  }
+  return false;
 }
 function bindRestartOnce() {
   const btn =
@@ -482,13 +498,45 @@ function showResult() {
       try { keepVisible(el); } catch(_) {}
       // 手動リスタートまで保持
       window.__RESULT_HOLD__ = true;
-      try { setResultMessageVisible(resultText); } catch(_) {}
-      try { showResultBar(resultText); } catch(_) {}
-      // restart binding（遅延描画対策で数回リトライ）
-      if (!bindRestartOnce()) {
-        setTimeout(bindRestartOnce, 0);
-        setTimeout(bindRestartOnce, 80);
-        setTimeout(bindRestartOnce, 160);
+      try { showResultMessage(resultText); } catch(_) {}
+      try { if (typeof showResultBar === 'function') showResultBar(resultText); } catch(_) {}
+      // restart binding（決定的にバインド + 遅延描画対策）
+      if (!bindRestart(() => {
+        window.__RESULT_HOLD__ = false;
+        const el2 = getResultMessageEl();
+        if (el2) el2.textContent = '';
+        try { if (typeof hideResultBar === 'function') hideResultBar(); } catch(_) {}
+        if (typeof loadQuiz === 'function') loadQuiz({ force: true });
+        else if (typeof window.loadQuiz === 'function') window.loadQuiz({ force: true });
+        else { try { location.reload(); } catch(_) {} }
+      })) {
+        setTimeout(() => bindRestart(() => {
+          window.__RESULT_HOLD__ = false;
+          const el3 = getResultMessageEl();
+          if (el3) el3.textContent = '';
+          try { if (typeof hideResultBar === 'function') hideResultBar(); } catch(_) {}
+          if (typeof loadQuiz === 'function') loadQuiz({ force: true });
+          else if (typeof window.loadQuiz === 'function') window.loadQuiz({ force: true });
+          else { try { location.reload(); } catch(_) {} }
+        }), 0);
+        setTimeout(() => bindRestart(() => {
+          window.__RESULT_HOLD__ = false;
+          const el4 = getResultMessageEl();
+          if (el4) el4.textContent = '';
+          try { if (typeof hideResultBar === 'function') hideResultBar(); } catch(_) {}
+          if (typeof loadQuiz === 'function') loadQuiz({ force: true });
+          else if (typeof window.loadQuiz === 'function') window.loadQuiz({ force: true });
+          else { try { location.reload(); } catch(_) {} }
+        }), 80);
+        setTimeout(() => bindRestart(() => {
+          window.__RESULT_HOLD__ = false;
+          const el5 = getResultMessageEl();
+          if (el5) el5.textContent = '';
+          try { if (typeof hideResultBar === 'function') hideResultBar(); } catch(_) {}
+          if (typeof loadQuiz === 'function') loadQuiz({ force: true });
+          else if (typeof window.loadQuiz === 'function') window.loadQuiz({ force: true });
+          else { try { location.reload(); } catch(_) {} }
+        }), 160);
       }
     } catch(_) {
       // fallback
