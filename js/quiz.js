@@ -78,6 +78,20 @@ if (typeof window.__QUIZ_RESULT_HOLD__ === 'undefined') {
   window.__QUIZ_RESULT_HOLD__ = false;
 }
 
+// --- Result persist helpers (idempotent additions) ---
+function keepVisible(el) {
+  try {
+    let n = el;
+    while (n && n !== document.body) {
+      if (n.style) {
+        n.style.setProperty('display','block','important');
+        n.style.setProperty('visibility','visible','important');
+      }
+      n = n.parentElement;
+    }
+  } catch(_) {}
+}
+
 // クイズの質問をシャッフルして準備
 function setupQuiz() {
     // 開始時にすべてのボタン状態をクリア
@@ -386,9 +400,29 @@ function showResult() {
       el.style.display = 'block';
       el.style.visibility = 'visible';
       el.style.opacity = '1';
+      // ensure visibility through ancestors as well
+      try { keepVisible(el); } catch(_) {}
       // 結果はユーザーがリスタートするまで保持（バーがソースオブトゥルース）
       window.__QUIZ_RESULT_HOLD__ = true;
       try { if (typeof showResultBar === 'function') showResultBar(resultText); } catch(_) {}
+
+      // Unify restart handler deterministically here
+      try {
+        const restartBtn = document.querySelector('#retry, #restart, .retry, .restart, [data-restart]') ||
+          Array.from(document.querySelectorAll('button, a, [role="button"], input[type="button"], input[type="submit"]'))
+               .find(el => /もう一度|やり直|再挑戦|retry|restart|again|replay/i.test((el.value||el.textContent||'').trim()));
+        if (restartBtn) {
+          restartBtn.onclick = (e) => {
+            try { e.preventDefault(); } catch(_) {}
+            window.__QUIZ_RESULT_HOLD__ = false;
+            try { if (typeof hideResultBar === 'function') hideResultBar(); } catch(_) {}
+            try { el.textContent = ''; } catch(_) {}
+            if (typeof loadQuiz === 'function') { loadQuiz({ force: true }); }
+            else if (typeof window.loadQuiz === 'function') { window.loadQuiz({ force: true }); }
+            else { try { location.reload(); } catch(_) {} }
+          };
+        }
+      } catch(_) {}
     } catch(_) {
       // fallback
       try { if (scoreElement) scoreElement.innerText = resultText; } catch(_) {}
