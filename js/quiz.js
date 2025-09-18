@@ -73,6 +73,11 @@ let questions = [];
 let quizStartTime = 0;
 let totalTimeSpent = 0;
 
+// Global default: result not held unless explicitly set
+if (typeof window.__QUIZ_RESULT_HOLD__ === 'undefined') {
+  window.__QUIZ_RESULT_HOLD__ = false;
+}
+
 // クイズの質問をシャッフルして準備
 function setupQuiz() {
     // 開始時にすべてのボタン状態をクリア
@@ -165,20 +170,10 @@ function resetAllButtonStates() {
     });
 }
 
-function loadQuiz(opts) {
-    // 結果表示のホールド中は強制以外は再開しない
-    try {
-        if (window.__QUIZ_RESULT_HOLD__ && !(opts && opts.force)) {
-            const el = document.getElementById('score');
-            if (el) {
-                el.removeAttribute?.('hidden');
-                el.style.display = 'block';
-                el.style.visibility = 'visible';
-                el.style.opacity = '1';
-            }
-            return; // ホールド中は自動再開しない
-        }
-    } catch(_) {}
+function loadQuiz(options) {
+    if (window.__QUIZ_RESULT_HOLD__ && !(options && options.force)) {
+      return;
+    }
 
     if (currentQuestionIndex >= questions.length) {
         showResult();
@@ -391,8 +386,9 @@ function showResult() {
       el.style.display = 'block';
       el.style.visibility = 'visible';
       el.style.opacity = '1';
-      // 結果はユーザーがリスタートするまで保持
+      // 結果はユーザーがリスタートするまで保持（バーがソースオブトゥルース）
       window.__QUIZ_RESULT_HOLD__ = true;
+      try { if (typeof showResultBar === 'function') showResultBar(resultText); } catch(_) {}
     } catch(_) {
       // fallback
       try { if (scoreElement) scoreElement.innerText = resultText; } catch(_) {}
@@ -522,20 +518,9 @@ window.showResultText = function (text) {
 };
 
 const __handleRestart = () => {
-  // ユーザー操作でのリスタートはホールドを解除
-  try { window.__QUIZ_RESULT_HOLD__ = false; } catch(_) {}
-  // リスタート時にもボタン状態を完全リセット
-  try { resetAllButtonStates && resetAllButtonStates(); } catch(e) { console.warn('[QUIZ] resetAllButtonStates unavailable', e); }
-  try { resultContainer && resultContainer.classList.add('hidden'); } catch(e) {}
-  try { quizContainer && quizContainer.classList.remove('hidden'); } catch(e) {}
-  // 少し遅延してからクイズを再開始
-  setTimeout(() => {
-    try {
-      if (typeof setupQuiz === 'function') setupQuiz();
-      // 明示的に強制開始（ホールド無視）
-      try { loadQuiz && loadQuiz({ force: true }); } catch(_) {}
-    } catch(e) { console.error('[QUIZ] setup/load failed', e); }
-  }, 100);
+  window.__QUIZ_RESULT_HOLD__ = false;
+  try { if (typeof hideResultBar === 'function') hideResultBar(); } catch(_) {}
+  loadQuiz({ force: true });
 };
 
 // 既存のボタンがあればバインド。無ければ何もしない（自動注入しない）
@@ -557,6 +542,20 @@ const __handleRestart = () => {
 })();
 
 // share button binding moved to guarded block above
+
+// Fallback: delegate restart clicks if explicit handler is not bound or markup differs
+document.addEventListener('click', (e) => {
+  try {
+    const t = e.target; if (!t) return;
+    const txt = (t.textContent || '').trim();
+    if (t.matches('#retry, #restart, .retry, .restart, [data-restart]') || txt === 'もう一度') {
+      e.preventDefault();
+      window.__QUIZ_RESULT_HOLD__ = false;
+      try { if (typeof hideResultBar === 'function') hideResultBar(); } catch(_) {}
+      loadQuiz({ force: true });
+    }
+  } catch(_) {}
+}, { capture: true });
 
 // 最初のクイズをセットアップして読み込む
 setupQuiz();
