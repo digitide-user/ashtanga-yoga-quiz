@@ -520,7 +520,9 @@ window.showResultText = function (text) {
 const __handleRestart = () => {
   window.__QUIZ_RESULT_HOLD__ = false;
   try { if (typeof hideResultBar === 'function') hideResultBar(); } catch(_) {}
-  loadQuiz({ force: true });
+  if (typeof loadQuiz === 'function') { loadQuiz({ force: true }); }
+  else if (typeof window.loadQuiz === 'function') { window.loadQuiz({ force: true }); }
+  else { try { location.reload(); } catch(_) {} }
 };
 
 // 既存のボタンがあればバインド。無ければ何もしない（自動注入しない）
@@ -546,13 +548,16 @@ const __handleRestart = () => {
 // Fallback: delegate restart clicks if explicit handler is not bound or markup differs
 document.addEventListener('click', (e) => {
   try {
-    const t = e.target; if (!t) return;
+    const t = e.target && (e.target.closest('button, a, [role="button"]') || e.target);
+    if (!t) return;
     const txt = (t.textContent || '').trim();
     if (t.matches('#retry, #restart, .retry, .restart, [data-restart]') || txt === 'もう一度') {
       e.preventDefault();
       window.__QUIZ_RESULT_HOLD__ = false;
       try { if (typeof hideResultBar === 'function') hideResultBar(); } catch(_) {}
-      loadQuiz({ force: true });
+      if (typeof loadQuiz === 'function') { loadQuiz({ force: true }); }
+      else if (typeof window.loadQuiz === 'function') { window.loadQuiz({ force: true }); }
+      else { try { location.reload(); } catch(_) {} }
     }
   } catch(_) {}
 }, { capture: true });
